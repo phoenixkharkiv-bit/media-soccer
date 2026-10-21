@@ -1,0 +1,616 @@
+{
+ "_comment": "Команды. Все названия из списка names считаются одной командой. Поле club объединяет составы одного клуба (например, составы в медиа- и бренд-лиге).",
+ "teams": [
+  {
+   "id": "7-kanal",
+   "name": "7 Канал",
+   "names": [
+    "7 Канал"
+   ]
+  },
+  {
+   "id": "adonis",
+   "name": "Adonis",
+   "names": [
+    "Meliart",
+    "Adonis"
+   ]
+  },
+  {
+   "id": "allcookies",
+   "name": "Allcookies",
+   "names": [
+    "Pride 520",
+    "Pride-520",
+    "Allcookies"
+   ]
+  },
+  {
+   "id": "barcelona",
+   "name": "Barcelona",
+   "names": [
+    "Barcelona"
+   ]
+  },
+  {
+   "id": "comcom",
+   "name": "Comcom",
+   "names": [
+    "Comcom"
+   ]
+  },
+  {
+   "id": "energy",
+   "name": "Energy",
+   "names": [
+    "Energy"
+   ]
+  },
+  {
+   "id": "fast-foot",
+   "name": "Fast foot",
+   "names": [
+    "Fast foot"
+   ]
+  },
+  {
+   "id": "gameover",
+   "name": "Gameover",
+   "names": [
+    "Gameover"
+   ]
+  },
+  {
+   "id": "gastra",
+   "name": "Gastra",
+   "names": [
+    "Gastra"
+   ]
+  },
+  {
+   "id": "greenteam",
+   "name": "GreenTeam",
+   "names": [
+    "GreenTeam"
+   ]
+  },
+  {
+   "id": "lands-utd",
+   "name": "Lands Utd.",
+   "names": [
+    "Lands Utd."
+   ]
+  },
+  {
+   "id": "metalistfans-net",
+   "name": "Metalistfans.net",
+   "names": [
+    "Metalistfans.net"
+   ]
+  },
+  {
+   "id": "mfc-titan",
+   "name": "MFC Titan",
+   "names": [
+    "Банзай",
+    "Республика Славутич",
+    "Карлсберг",
+    "MFC Titan"
+   ]
+  },
+  {
+   "id": "mfc-west",
+   "name": "MFC West",
+   "names": [
+    "MFC West"
+   ]
+  },
+  {
+   "id": "mobus-com",
+   "name": "Mobus.com",
+   "names": [
+    "Mobus.com"
+   ],
+   "club": "Меццо"
+  },
+  {
+   "id": "nw-912",
+   "name": "NW 912",
+   "names": [
+    "NW 912",
+    "NW-912"
+   ]
+  },
+  {
+   "id": "olimpic",
+   "name": "Olimpic",
+   "names": [
+    "Olimpic"
+   ]
+  },
+  {
+   "id": "palermo",
+   "name": "Palermo",
+   "names": [
+    "Palermo"
+   ]
+  },
+  {
+   "id": "shado",
+   "name": "Shado",
+   "names": [
+    "Shado"
+   ]
+  },
+  {
+   "id": "shturm",
+   "name": "Shturm",
+   "names": [
+    "Shturm"
+   ]
+  },
+  {
+   "id": "sport-ua",
+   "name": "Sport.ua",
+   "names": [
+    "Sport.com.ua",
+    "Sport.ua"
+   ]
+  },
+  {
+   "id": "unlimited",
+   "name": "Unlimited",
+   "names": [
+    "Unlimited"
+   ]
+  },
+  {
+   "id": "unlimiters",
+   "name": "Unlimiters",
+   "names": [
+    "Unlimiters"
+   ],
+   "club": "Меццо"
+  },
+  {
+   "id": "winbau",
+   "name": "Winbau",
+   "names": [
+    "Winbau"
+   ]
+  },
+  {
+   "id": "aviator-grad",
+   "name": "Авиатор-Град",
+   "names": [
+    "Авиатор-Град"
+   ]
+  },
+  {
+   "id": "azhi",
+   "name": "АЖИ",
+   "names": [
+    "АЖИ"
+   ],
+   "club": "АЖИ"
+  },
+  {
+   "id": "azhi-brend",
+   "name": "АЖИ (бренд)",
+   "names": [
+    "АЖИ (бренд)"
+   ],
+   "club": "АЖИ"
+  },
+  {
+   "id": "azhi-media",
+   "name": "АЖИ (медиа)",
+   "names": [
+    "АЖИ (медиа)"
+   ],
+   "club": "АЖИ"
+  },
+  {
+   "id": "antares",
+   "name": "Антарес",
+   "names": [
+    "Антарес"
+   ]
+  },
+  {
+   "id": "afk-priroda-3",
+   "name": "АФК Природа-3",
+   "names": [
+    "АФК Природа-3"
+   ]
+  },
+  {
+   "id": "variant",
+   "name": "Вариант",
+   "names": [
+    "Вариант"
+   ]
+  },
+  {
+   "id": "vestnik-ufsi",
+   "name": "Вестник УФСИ",
+   "names": [
+    "Вестник УФСИ"
+   ]
+  },
+  {
+   "id": "vecherka",
+   "name": "Вечёрка",
+   "names": [
+    "Вечёрка"
+   ]
+  },
+  {
+   "id": "vremya-azhi",
+   "name": "Время-АЖИ",
+   "names": [
+    "Время-АЖИ"
+   ]
+  },
+  {
+   "id": "vse-pro-metallist",
+   "name": "Все про Металлист",
+   "names": [
+    "Все про Металлист"
+   ]
+  },
+  {
+   "id": "gladiolus",
+   "name": "Гладиолус",
+   "names": [
+    "Гладиолус"
+   ]
+  },
+  {
+   "id": "golstar",
+   "name": "ГолStar",
+   "names": [
+    "ГолStar"
+   ],
+   "club": "ГолStar"
+  },
+  {
+   "id": "golstar-brend",
+   "name": "ГолStar (бренд)",
+   "names": [
+    "ГолStar (бренд)"
+   ],
+   "club": "ГолStar"
+  },
+  {
+   "id": "golstar-media",
+   "name": "ГолStar (медиа)",
+   "names": [
+    "ГолStar (медиа)"
+   ],
+   "club": "ГолStar"
+  },
+  {
+   "id": "gorodskoy-dozor",
+   "name": "Городской Доzор",
+   "names": [
+    "Городской дозор",
+    "Городской Доzор"
+   ]
+  },
+  {
+   "id": "grammofon",
+   "name": "Граммофон",
+   "names": [
+    "Граммофон"
+   ]
+  },
+  {
+   "id": "divays",
+   "name": "Дивайс",
+   "names": [
+    "Дивайс"
+   ]
+  },
+  {
+   "id": "inart",
+   "name": "Инарт",
+   "names": [
+    "Инарт"
+   ]
+  },
+  {
+   "id": "kalvados",
+   "name": "Кальвадос",
+   "names": [
+    "Кальвадос"
+   ]
+  },
+  {
+   "id": "kdyussh-8",
+   "name": "КДЮСШ-8",
+   "names": [
+    "КДЮСШ-8"
+   ]
+  },
+  {
+   "id": "kozhanyy-myach",
+   "name": "Кожаный мяч",
+   "names": [
+    "Кожаный мяч"
+   ]
+  },
+  {
+   "id": "kolorit",
+   "name": "Колорит",
+   "names": [
+    "Колорит"
+   ]
+  },
+  {
+   "id": "komsomolka",
+   "name": "Комсомолка",
+   "names": [
+    "Комсомольская правда",
+    "Комсомолка"
+   ]
+  },
+  {
+   "id": "krylya-ukrainy",
+   "name": "Крылья Украины",
+   "names": [
+    "Крылья Украины"
+   ]
+  },
+  {
+   "id": "kts",
+   "name": "КТС",
+   "names": [
+    "КТС"
+   ]
+  },
+  {
+   "id": "megas",
+   "name": "Мегас",
+   "names": [
+    "Харьков-Спорт (бренд)",
+    "Мегас"
+   ],
+   "club": "Харьков-Спорт"
+  },
+  {
+   "id": "meta",
+   "name": "Мета",
+   "names": [
+    "Мета"
+   ]
+  },
+  {
+   "id": "metallist-tv",
+   "name": "Металлист ТВ",
+   "names": [
+    "Металлист ТВ"
+   ]
+  },
+  {
+   "id": "metstso",
+   "name": "Меццо",
+   "names": [
+    "Меццо-2",
+    "Mezzo-Mobus",
+    "Green Team - Mezzo",
+    "Меццо"
+   ],
+   "club": "Меццо"
+  },
+  {
+   "id": "mobilna-vezha",
+   "name": "Мобільна вежа",
+   "names": [
+    "Мобільна вежа"
+   ]
+  },
+  {
+   "id": "nadezhda",
+   "name": "Надежда",
+   "names": [
+    "Надежда"
+   ]
+  },
+  {
+   "id": "nasha-komanda",
+   "name": "Наша команда",
+   "names": [
+    "Наша команда"
+   ]
+  },
+  {
+   "id": "nfau",
+   "name": "НФаУ",
+   "names": [
+    "НФаУ"
+   ]
+  },
+  {
+   "id": "olimp",
+   "name": "Олимп",
+   "names": [
+    "Олимп"
+   ]
+  },
+  {
+   "id": "olimpik",
+   "name": "Олимпик",
+   "names": [
+    "Олимпик"
+   ]
+  },
+  {
+   "id": "olimpik-utog",
+   "name": "Олимпик-УТОГ",
+   "names": [
+    "Олимпик-УТОГ"
+   ]
+  },
+  {
+   "id": "pervaya-stolitsa",
+   "name": "Первая столица",
+   "names": [
+    "Первая столица"
+   ]
+  },
+  {
+   "id": "r1",
+   "name": "Р1",
+   "names": [
+    "Р1"
+   ]
+  },
+  {
+   "id": "rogan",
+   "name": "Рогань",
+   "names": [
+    "Рогань"
+   ]
+  },
+  {
+   "id": "simon",
+   "name": "Симон",
+   "names": [
+    "Симон"
+   ]
+  },
+  {
+   "id": "sloboda",
+   "name": "Слобода",
+   "names": [
+    "Слобода"
+   ]
+  },
+  {
+   "id": "sodruzhestvo",
+   "name": "Содружество",
+   "names": [
+    "Содружество"
+   ]
+  },
+  {
+   "id": "spartak",
+   "name": "Спартак",
+   "names": [
+    "Рокос",
+    "Хроник-спорт",
+    "ХИБМ",
+    "Спартак"
+   ]
+  },
+  {
+   "id": "tch3-osnova",
+   "name": "ТЧ3-Основа",
+   "names": [
+    "ТЧ3-Основа"
+   ]
+  },
+  {
+   "id": "tyuz-yunayted",
+   "name": "ТЮЗ Юнайтед",
+   "names": [
+    "ТЮЗ Юнайтед"
+   ]
+  },
+  {
+   "id": "ukrresurs",
+   "name": "Укрресурс",
+   "names": [
+    "Атлетик",
+    "Укрресурс"
+   ]
+  },
+  {
+   "id": "favorit-tv",
+   "name": "Фаворит ТВ",
+   "names": [
+    "Фаворит ТВ"
+   ]
+  },
+  {
+   "id": "fk-feniks",
+   "name": "ФК \"Феникс\"",
+   "names": [
+    "ФК \"Феникс\""
+   ]
+  },
+  {
+   "id": "kharkov-siti",
+   "name": "Харьков-Сити",
+   "names": [
+    "Харьков-Сити"
+   ]
+  },
+  {
+   "id": "kharkov-sport",
+   "name": "Харьков-Спорт",
+   "names": [
+    "Харьков-Спорт"
+   ],
+   "club": "Харьков-Спорт"
+  },
+  {
+   "id": "kharkov-sport-media",
+   "name": "Харьков-Спорт (медиа)",
+   "names": [
+    "Харьков-Спорт (медиа)"
+   ],
+   "club": "Харьков-Спорт"
+  },
+  {
+   "id": "kharkovskie-novosti-97",
+   "name": "Харьковские новости' 97",
+   "names": [
+    "Харьковские новости' 97"
+   ]
+  },
+  {
+   "id": "khsn",
+   "name": "ХСН",
+   "names": [
+    "ХСН"
+   ]
+  },
+  {
+   "id": "khsn-2",
+   "name": "ХСН-2",
+   "names": [
+    "ХСН-2"
+   ]
+  },
+  {
+   "id": "khfti",
+   "name": "ХФТИ",
+   "names": [
+    "ХФТИ"
+   ]
+  },
+  {
+   "id": "shtorm",
+   "name": "Шторм",
+   "names": [
+    "Шторм"
+   ]
+  },
+  {
+   "id": "eshtoril",
+   "name": "Эшторил",
+   "names": [
+    "Эшторил"
+   ]
+  },
+  {
+   "id": "yuventus",
+   "name": "Ювентус",
+   "names": [
+    "Ювентус"
+   ]
+  }
+ ]
+}
