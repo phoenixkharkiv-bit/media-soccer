@@ -626,3 +626,34 @@ table .popv:hover { color: var(--court); text-decoration: underline; }
 .tally2 b { color: var(--board-ink); }
 .tally2 div { padding-left: 12px; border-left: 3px solid var(--accent); }
 .tally2 div:nth-child(2) { border-color: var(--lg-media); } .tally2 div:nth-child(3) { border-color: var(--lg-brand); } .tally2 div:nth-child(4) { border-color: #fff; }
+
+/* сітка плей-офф */
+.bk-scroll { overflow-x: auto; padding-bottom: 6px; }
+.bk { display: grid; grid-template-columns: repeat(var(--cols), minmax(230px, 1fr)); gap: 0 44px; min-width: max-content; }
+.bk-col { display: grid; grid-template-rows: auto 1fr; gap: 10px; min-width: 230px; }
+.bk-h { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.bk-body { display: flex; flex-direction: column; }
+.bk-pair { flex: 1; display: flex; flex-direction: column; justify-content: space-around; position: relative; padding-block: 7px; }
+/* скоба, що з'єднує пару з матчем наступного раунду */
+.bk-pair::after { content: ""; position: absolute; right: -22px; top: 25%; bottom: 25%; border: 2px solid var(--line); border-left: 0; border-radius: 0 6px 6px 0; }
+.bk-pair::before { content: ""; position: absolute; right: -44px; top: 50%; width: 22px; border-top: 2px solid var(--line); }
+.bk-slot { position: relative; }
+.bk-m { display: grid; gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; color: var(--ink); box-shadow: 0 1px 2px rgb(14 26 48 / .05); transition: border-color .12s, box-shadow .12s; }
+.bk-m:hover { text-decoration: none; border-color: var(--court); box-shadow: 0 4px 14px -6px rgb(14 26 48 / .3); }
+.bk-l { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 7px 12px 0; }
+.bk-t { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 12px; font-size: 14px; color: var(--muted); }
+.bk-t + .bk-t { border-top: 1px solid var(--line-soft); }
+.bk-t .cr-s { --sz: 18px; }
+.bk-t.w { color: var(--ink); font-weight: 600; }
+.bk-t b { font: 600 15px/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.bk-t.w b { color: var(--ink); }
+.bk-t small { font-size: 11px; margin-left: 3px; font-weight: 500; }
+.bk-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-d { font-size: 11px; color: var(--muted); padding: 0 12px 7px; }
+.bk-col:last-child .bk-slot.last > .bk-m { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.bk-fin { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.bk-extra { position: absolute; left: 0; right: 0; top: calc(100% + 22px); display: grid; gap: 10px; }
+.bk.has-extra { padding-bottom: 96px; }
+.bk-slot + .bk-slot { margin-top: 12px; }
+.bk-sub { margin-top: 18px; }
+@media (prefers-reduced-motion: reduce) { .bk-m { transition: none; } }

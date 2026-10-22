@@ -538,6 +538,51 @@
       <td class="n">${r.gf}–${r.ga}</td><td class="n hide-s">${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td>
       <td class="n pts">${r.pts}</td>${tb.archive ? '' : `<td class="hide-s"><span class="form">${r.form.slice(-5).map(f => `<i class="${f}" title="${f === 'W' ? 'перемога' : f === 'D' ? 'нічия' : 'поразка'}">${f === 'W' ? 'В' : f === 'D' ? 'Н' : 'П'}</i>`).join('')}</span></td>`}</tr>`).join('')}</tbody></table></div>${showMedals ? '<div class="zlegend"><span><i class="z1"></i>чемпіон</span><span><i class="z2"></i>2 місце</span><span><i class="z3"></i>3 місце</span></div>' : ''}`;
   }
+  /* --- сітка плей-офф --- */
+  // cols: раунди від першого до фіналу; пари вишиковуємо від фіналу назад за командами, що пройшли далі
+  function orderBracket(cols) {
+    for (let k = cols.length - 2; k >= 0; k--) {
+      const next = cols[k + 1], cur = cols[k].slice(), ordered = [];
+      for (const m of next) for (const t of [m.home, m.away]) { const i = cur.findIndex(x => x.home === t || x.away === t); if (i >= 0) ordered.push(cur.splice(i, 1)[0]); }
+      cols[k] = ordered.concat(cur);
+    }
+    // зверху в картці — команда з верхнього матчу попереднього раунду
+    return cols.map((col, k) => col.map((m, j) => {
+      if (!k) return { m, flip: false };
+      const up = cols[k - 1][j * 2];
+      return { m, flip: !!up && (up.home === m.away || up.away === m.away) && !(up.home === m.home || up.away === m.home) };
+    }));
+  }
+  function bkCard(x, label) {
+    const m = x.m, w = Core.winnerSide(m);
+    const sc = Core.scoreText(m).split(':');
+    const sides = [['h', m.home, m.homeName, sc[0], m.pens && m.pens[0]], ['a', m.away, m.awayName, sc[1], m.pens && m.pens[1]]];
+    if (x.flip) sides.reverse();
+    return `<a class="bk-m" href="#m-${m.id}">${label ? `<span class="bk-l">${esc(label)}</span>` : ''}${sides.map(([s, t, n, g, p]) => `<span class="bk-t${w === s ? ' w' : ''}">${crest(t)}<span class="bk-n">${nameHtml(n)}</span><b>${esc(g)}${p != null ? `<small>(${p})</small>` : ''}</b></span>`).join('')}<span class="bk-d">${shortDate(m.date)}${videos.matches[m.id] ? ' · ▶' : ''}</span></a>`;
+  }
+  function bracketHtml(titles, cols, extra) {
+    const ord = orderBracket(cols);
+    return `<div class="bk-scroll"><div class="bk${extra && extra.length ? ' has-extra' : ''}" style="--cols:${ord.length}">${ord.map((col, k) => `<div class="bk-col"><div class="bk-h">${esc(titles[k])}</div><div class="bk-body">${k < ord.length - 1
+      ? Array.from({ length: Math.ceil(col.length / 2) }, (_, i) => `<div class="bk-pair">${col.slice(i * 2, i * 2 + 2).map(x => `<div class="bk-slot">${bkCard(x)}</div>`).join('')}</div>`).join('')
+      : col.map(x => `<div class="bk-fin"><div class="bk-slot last">${bkCard(x)}${extra && extra.length ? `<div class="bk-extra">${extra.map(([l, m]) => bkCard({ m }, l)).join('')}</div>` : ''}</div></div>`).join('')}</div></div>`).join('')}</div></div>`;
+  }
+  function playoffHtml(list) {
+    const by = st => list.filter(m => m.stage === st);
+    const main = [['1/4 фіналу', by('1/4 фіналу')], ['1/2 фіналу', by('1/2 фіналу')], ['Фінал', by('Фінал')]].filter(x => x[1].length);
+    const third = list.filter(m => /^За 3/.test(m.stage || ''));
+    const used = new Set([...main.flatMap(x => x[1]), ...third]);
+    let html = '';
+    if (main.length) html += bracketHtml(main.map(x => x[0]), main.map(x => x[1].slice()), third.map(m => ['Матч за 3-тє місце', m]));
+    // утішна сітка: за 5–8 місця → за 5–6 і за 7–8
+    const semi58 = by('За 5–8 місця'), f56 = by('За 5–6 місця'), f78 = by('За 7–8 місця');
+    if (semi58.length && f56.length) {
+      html += `<h3 class="sub bk-sub">Матчі за 5–8 місця</h3>` + bracketHtml(['За 5–8 місця', 'За 5–6 місця'], [semi58.slice(), f56.slice()], f78.map(m => ['За 7–8 місця', m]));
+      [...semi58, ...f56, ...f78].forEach(m => used.add(m));
+    }
+    const rest = list.filter(m => !used.has(m)).sort((a, b) => STAGE_ORDER(a.stage) - STAGE_ORDER(b.stage));
+    if (rest.length) html += `<h3 class="sub bk-sub">Інші матчі плей-офф</h3><div class="mlist">${rest.map(m => matchRow(m, { ctx: esc(m.stage || '') })).join('')}</div>`;
+    return `<section class="block"><h2 class="sec">Плей-офф</h2>${html}</section>`;
+  }
   const STAGE_ORDER = s => {
     if (!s) return 99;
     if (/^\d+ тур$/.test(s)) return parseInt(s, 10);
@@ -561,10 +606,7 @@
     }
     const tables = v.tables.map(tb => `<div class="block">${tb.div ? `<h3 class="sub">${esc(tb.div)}</h3>` : ''}${tableHtml(tb, { league: t.format === 'league' })}</div>`).join('');
     if (tables) out += `<section class="${v.tables.length > 1 && t.format === 'cup' ? 'grid2' : 'block'}">${tables}</section>`;
-    if (v.playoff && v.playoff.length) {
-      const st = [...new Set(v.playoff.map(m => m.stage))].sort((a, b) => STAGE_ORDER(a) - STAGE_ORDER(b));
-      out += `<section class="block"><h2 class="sec">Плей-офф</h2><div class="mlist">${st.map(sn => `<details class="round" open><summary>${esc(sn)}</summary>${v.playoff.filter(m => m.stage === sn).map(m => matchRow(m)).join('')}</details>`).join('')}</div></section>`;
-    }
+    if (v.playoff && v.playoff.length) out += playoffHtml(v.playoff);
     if (t.final) {
       const sc = t.final.scorers;
       if (sc.length) {
@@ -576,7 +618,7 @@
     // туры (групповые)
     const roundStages = v.rounds.filter(r => Core.isRoundStage(r.stage)).sort((a, b) => STAGE_ORDER(a.stage) - STAGE_ORDER(b.stage));
     if (roundStages.length) {
-      out += `<section class="block"><div class="sec-head"><h2 class="sec">Матчі за турами</h2><span class="note">${roundStages.length} ${plural(roundStages.length, 'тур', 'тури', 'турів')}</span></div><div class="mlist">${roundStages.map((r, k) => `<details class="round"${k === roundStages.length - 1 && roundStages.length < 8 ? ' open' : ''}><summary>${esc(r.stage)} <span>${fmtDate(r.ms[0].date)}</span></summary>${r.ms.map(m => matchRow(m, { ctx: m.div && v.tables.length > 1 ? esc(m.div) : '' })).join('')}</details>`).join('')}</div></section>`;
+      out += `<section class="block"><div class="sec-head"><h2 class="sec">${v.playoff && v.playoff.length ? 'Груповий етап · матчі за турами' : 'Матчі за турами'}</h2><span class="note">${roundStages.length} ${plural(roundStages.length, 'тур', 'тури', 'турів')}</span></div><div class="mlist">${roundStages.map((r, k) => `<details class="round"${k === roundStages.length - 1 && roundStages.length < 8 ? ' open' : ''}><summary>${esc(r.stage)} <span>${fmtDate(r.ms[0].date)}</span></summary>${r.ms.map(m => matchRow(m, { ctx: m.div && v.tables.length > 1 ? esc(m.div) : '' })).join('')}</details>`).join('')}</div></section>`;
     }
     const sc = Core.scorers(t.matches, 20);
     if (sc.length) {
@@ -1541,6 +1583,7 @@
   function route() {
     if (!db) return;
     const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+    pops.clear(); ranks.clear();
     let html, nav = '';
     let m;
     if (!h) { html = pageHome(); nav = 'home'; }
@@ -1557,7 +1600,6 @@
     else if ((m = h.match(/^r-(\d{4}-\d{2}-\d{2}-\d+)$/))) { html = pageReview(m[1]); nav = 'seasons'; }
     else html = notFound();
     chartMounts = [];
-    pops.clear(); ranks.clear();
     app.innerHTML = html;
     runMounts();
     setNav(nav);
