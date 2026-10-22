@@ -171,7 +171,7 @@
     if (!/[ЁёЫыЭэЪъИиЕе]/.test(w) && !/[сц]кой$/.test(w)) return w;
     let s = w;
     // '@' — украинская «и», которую правило ниже не должно превращать в «і»
-    s = s.replace(/ск[иo]й$/, 'ськ@й').replace(/ской$/, 'ськ@й').replace(/цкой$/, 'цьк@й').replace(/ский$/, 'ськ@й').replace(/цкий$/, 'цьк@й').replace(/ская$/, 'ська').replace(/цкая$/, 'цька').replace(/ый$/, '@й').replace(/ий$/, 'ій');
+    s = s.replace(/ской$/, 'ськ@й').replace(/цкой$/, 'цьк@й').replace(/ский$/, 'ськ@й').replace(/цкий$/, 'цьк@й').replace(/ская$/, 'ська').replace(/цкая$/, 'цька').replace(/ый$/, '@й').replace(/ий$/, 'ій');
     let out = '';
     for (let i = 0; i < s.length; i++) {
       const c = s[i], p = i ? s[i - 1] : '', lo = c.toLowerCase(), up = c !== lo;
