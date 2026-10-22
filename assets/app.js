@@ -309,7 +309,7 @@
       <div class="tw"><table class="st"><thead><tr><th class="n">#</th><th>Команда</th><th class="n">І</th><th class="n">М’ячі</th><th class="n">О</th></tr></thead><tbody>${tb.rows.map(r => `<tr><td class="n"><span class="pos${tb.complete ? medalCls(r.pos) : ''}">${r.pos}</span></td><td>${crestLink(r.team, r.name)}</td><td class="n">${popv(r.p, tpop(r.team, 'p', L.v.tables[0].matches, plainName(r.name)))}</td><td class="n">${r.gf}–${r.ga}</td><td class="n pts">${r.pts}</td></tr>`).join('')}</tbody></table></div>
       ${tb.complete ? '' : '<p class="note pad" style="padding-top:10px">Таблиця станом на останній зіграний тур.</p>'}</div>` : '';
     const top = recs.topScorers.slice(0, 8), apps = recs.mostApps.slice(0, 5);
-    const ldList = (list, val, k) => list.map((p, i) => { const c = clubsOf(p.teams)[0]; return `<div class="ld${i === 0 ? ' first' : ''}"><span class="n">${i + 1}</span>${avatar(p, c && c.team)}<span class="nm">${playerLink(p)}<small>${mainTeams(p) || ''}</small></span><b class="num">${popv(val(p), ppop(p, k))}</b></div>`; }).join('');
+    const ldList = (list, val, k) => list.map((p, i) => { const c = clubsOf(p.teams)[0]; return `<div class="ld${i === 0 ? ' first' : ''}"><span class="n">${i + 1}</span><span class="nm">${playerLink(p)}<small>${mainTeams(p) || ''}</small></span><b class="num">${popv(val(p), ppop(p, k))}</b></div>`; }).join('');
     return `<div class="page">
       <div class="home">
         <div class="col">
@@ -618,7 +618,7 @@
     // туры (групповые)
     const roundStages = v.rounds.filter(r => Core.isRoundStage(r.stage)).sort((a, b) => STAGE_ORDER(a.stage) - STAGE_ORDER(b.stage));
     if (roundStages.length) {
-      out += `<section class="block"><div class="sec-head"><h2 class="sec">${v.playoff && v.playoff.length ? 'Груповий етап · матчі за турами' : 'Матчі за турами'}</h2><span class="note">${roundStages.length} ${plural(roundStages.length, 'тур', 'тури', 'турів')}</span></div><div class="mlist">${roundStages.map((r, k) => `<details class="round"${k === roundStages.length - 1 && roundStages.length < 8 ? ' open' : ''}><summary>${esc(r.stage)} <span>${fmtDate(r.ms[0].date)}</span></summary>${r.ms.map(m => matchRow(m, { ctx: m.div && v.tables.length > 1 ? esc(m.div) : '' })).join('')}</details>`).join('')}</div></section>`;
+      out += `<section class="block"><div class="sec-head"><h2 class="sec">${v.playoff && v.playoff.length ? 'Груповий етап · матчі за турами' : 'Матчі за турами'}</h2><span class="note">${roundStages.length} ${plural(roundStages.length, 'тур', 'тури', 'турів')}</span></div><div class="mlist">${roundStages.map((r, k) => `<details class="round"><summary>${esc(r.stage)} <span>${fmtDate(r.ms[0].date)}</span></summary>${r.ms.map(m => matchRow(m, { ctx: m.div && v.tables.length > 1 ? esc(m.div) : '' })).join('')}</details>`).join('')}</div></section>`;
     }
     const sc = Core.scorers(t.matches, 20);
     if (sc.length) {
@@ -1113,7 +1113,7 @@
     openModal(esc(x.title), x.sub ? esc(x.sub) : '', `<div class="tcard flat">${x.rows.map((it, i) => tcRow(it, i)).join('')}</div>`);
   });
   function tcRow(it, i) {
-    return `<div class="tc-r${i === 0 ? ' first' : ''}"><span class="tc-n">${i + 1}</span>${it.icon}<span class="tc-nm"><a href="${it.href}">${nameHtml(it.label)}</a>${it.sub ? `<small>${it.sub}</small>` : ''}</span><span class="tc-v">${popv(it.text != null ? it.text : it.value, it.pop)}</span></div>`;
+    return `<div class="tc-r${i === 0 ? ' first' : ''}${it.icon ? '' : ' noicon'}"><span class="tc-n">${i + 1}</span>${it.icon || ''}<span class="tc-nm"><a href="${it.href}">${nameHtml(it.label)}</a>${it.sub ? `<small>${it.sub}</small>` : ''}</span><span class="tc-v">${popv(it.text != null ? it.text : it.value, it.pop)}</span></div>`;
   }
   // rows: повний відсортований список [{ label, href, icon, sub, value, text, pop }]
   function topCard(title, rows, note) {
@@ -1122,7 +1122,7 @@
     ranks.set(id, () => ({ title, sub: note, rows: rows.slice(0, 50) }));
     return `<section class="tcard"><button type="button" class="tc-h" data-rank="${id}"><h3>${esc(title)}</h3><span>Усі ›</span></button>${rows.slice(0, 5).map((it, i) => tcRow(it, i)).join('')}${note ? `<p class="tc-note">${esc(note)}</p>` : ''}</section>`;
   }
-  const pRow = (r, val, k, ms, fmt) => { const c = clubsOf(r.teams)[0]; const v = val(r); return { label: r.p.name, href: '#p-' + r.p.id, icon: avatar(r.p, c && c.team), sub: c ? crest(c.team, 'xs') + esc(c.name) : '', value: v, text: fmt ? fmt(v) : v, pop: ppop(r.p, k, ms) }; };
+  const pRow = (r, val, k, ms, fmt) => { const c = clubsOf(r.teams)[0]; const v = val(r); return { label: r.p.name, href: '#p-' + r.p.id, icon: '', sub: c ? crest(c.team, 'xs') + esc(c.name) : '', value: v, text: fmt ? fmt(v) : v, pop: ppop(r.p, k, ms) }; };
   const tRow = (r, val, k, ms, fmt) => { const v = val(r); return { label: r.team.name, href: '#t-' + r.team.id, icon: crest(r.team, 'md'), sub: r.p + ' ' + plural(r.p, 'матч', 'матчі', 'матчів'), value: v, text: fmt ? fmt(v) : v, pop: k ? (k.startsWith('streak:') ? streakPop(r.team, r.streaks.at[k.slice(7)], 'серія', ms) : tpop(r.team, k, ms)) : null }; };
   function playerCards(rows, ms) {
     const min = statsState.minApps;
