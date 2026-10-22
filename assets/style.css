@@ -70,7 +70,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .top-in { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 18px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--board-ink); font-family: var(--f-display); font-weight: 700; font-size: 15px; letter-spacing: .005em; white-space: nowrap; }
 .brand:hover { text-decoration: none; }
-.brand-mark { width: 40px; height: 32px; flex: none; }
+.brand-mark { width: auto; height: 40px; flex: none; display: block; }
 .brand small { display: block; font-family: var(--f-body); font-weight: 500; font-size: 11px; color: var(--board-dim); letter-spacing: .04em; }
 .nav { display: flex; gap: 2px; flex-wrap: wrap; }
 .nav a { color: var(--board-dim); padding: 7px 11px; border-radius: 7px; font-weight: 500; font-size: 14px; }
@@ -541,3 +541,88 @@ h4.mini { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-sp
 .cols .ls { display: none; }
 @media (max-width: 640px) { .cols .lf { display: none; } .cols .ls { display: inline; } .cols .v { font-size: 10px; } }
 .player { max-width: 880px; }
+
+/* ================= редизайн 2: емблеми, таблиці, картки лідерів ================= */
+/* умовні емблеми клубів */
+.cr-s { --sz: 20px; display: inline-grid; place-items: center; width: var(--sz); height: calc(var(--sz) * 1.12); flex: none; background: linear-gradient(160deg, var(--c1), var(--c2)); clip-path: polygon(0 0, 100% 0, 100% 64%, 50% 100%, 0 64%); color: #fff; font: 800 calc(var(--sz) * .36)/1 var(--f-display); letter-spacing: -.02em; padding-bottom: calc(var(--sz) * .14); vertical-align: middle; text-shadow: 0 1px 1px rgb(0 0 0 / .25); white-space: nowrap; overflow: hidden; }
+.cr-s.xs { --sz: 14px; font-size: 0; margin-right: 5px; vertical-align: -2px; }
+.cr-s.md { --sz: 28px; }
+.cr-s.lg { --sz: 40px; }
+.cr-s.xl { --sz: 58px; }
+.cr-s.xxl { --sz: 76px; }
+.tn { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.mrow .h, .mrow .a { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mrow .h { justify-content: flex-end; }
+.mrow .h .cr-s, .mrow .a .cr-s { --sz: 18px; }
+.av { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none; background: linear-gradient(150deg, var(--c1), var(--c2)); color: #fff; font: 700 12px/1 var(--f-body); box-shadow: inset 0 0 0 2px rgb(255 255 255 / .18); }
+.board-team { display: flex; align-items: center; gap: 14px; }
+.board-team.h { justify-content: flex-end; }
+.feature .score .t { display: flex; align-items: center; gap: 12px; }
+.feature .score .t.r { justify-content: flex-end; }
+.tk span { display: flex; align-items: center; gap: 6px; }
+.tk .cr-s { --sz: 16px; }
+
+/* таблиці як на спортивних сайтах */
+table.st td { padding: 9px 10px; }
+table.st th { background: none; font-size: 11px; }
+table.st td.team { font-weight: 500; }
+table.st tr td:first-child { box-shadow: inset 3px 0 0 transparent; }
+table.st tr.z1 td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+table.st tr.z2 td:first-child { box-shadow: inset 3px 0 0 var(--silver); }
+table.st tr.z3 td:first-child { box-shadow: inset 3px 0 0 var(--bronze); }
+table.st .pos { color: var(--ink); background: none; width: auto; }
+table.st td.pts { font-family: var(--f-mono); font-size: 15px; }
+.form { gap: 4px; }
+.form i { width: 20px; height: 20px; border-radius: 5px; display: inline-grid; place-items: center; color: #fff; font: 700 10px/1 var(--f-body); font-style: normal; }
+.form i:last-child { box-shadow: 0 3px 0 -1px currentColor; }
+.form i.W { color: #fff; background: var(--win); } .form i.D { background: var(--draw); } .form i.L { background: var(--loss); }
+.form i:last-child.W { box-shadow: 0 4px 0 -2px var(--win); } .form i:last-child.D { box-shadow: 0 4px 0 -2px var(--draw); } .form i:last-child.L { box-shadow: 0 4px 0 -2px var(--loss); }
+.zlegend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); padding: 8px 2px 0; }
+.zlegend span { display: inline-flex; align-items: center; gap: 6px; }
+.zlegend i { width: 8px; height: 8px; border-radius: 50%; }
+.zlegend i.z1 { background: var(--gold); } .zlegend i.z2 { background: var(--silver); } .zlegend i.z3 { background: var(--bronze); }
+/* у таблицях числа-посилання не кричать: колір тексту, підкреслення лише при наведенні */
+table .popv { color: inherit; text-decoration: underline dotted color-mix(in srgb, var(--muted) 55%, transparent); }
+table .popv:hover { color: var(--court); text-decoration: underline; }
+
+/* картки лідерів */
+.tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 18px; }
+.tcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 18px 10px; display: grid; align-content: start; min-width: 0; }
+.tcard.flat { border: 0; padding: 0; background: none; }
+.tc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: inherit; color: var(--ink); background: none; border: 0; padding: 14px 0 8px; cursor: pointer; text-align: left; }
+.tc-h h3 { margin: 0; font: 700 16px/1.2 var(--f-display); letter-spacing: -.005em; }
+.tc-h span { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.tc-h:hover span { color: var(--court); }
+.tc-r { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.tcard > .tc-r:first-of-type { border-top: 0; }
+.tc-n { font: 12px var(--f-mono); color: var(--muted); text-align: right; }
+.tc-nm { min-width: 0; display: grid; }
+.tc-nm a { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-nm small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-v { font: 600 15px/1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.tc-v .popv { color: var(--ink); text-decoration: none; }
+.tc-r.first .tc-v .popv, .tc-r.first .tc-v > :only-child { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 9px; margin: 0; border-radius: 999px; background: var(--court); color: #fff; }
+.tc-r.first .tc-v .popv:hover { filter: brightness(1.1); background: var(--court); }
+.tc-note { margin: 4px 0 6px; font-size: 12px; color: var(--muted); }
+.ld { grid-template-columns: 22px auto minmax(0, 1fr) auto; }
+.ld .av { width: 30px; height: 30px; font-size: 11px; }
+.ld.first b .popv { display: inline-grid; place-items: center; min-width: 40px; height: 26px; padding: 0 9px; margin: 0; border-radius: 999px; background: var(--court); color: #fff; text-decoration: none; }
+
+/* відео: великі прев'ю, кнопка відтворення */
+.vid.big { grid-column: span 2; grid-row: span 2; font-size: 15px; font-weight: 600; }
+@media (max-width: 640px) { .vid.big { grid-column: auto; grid-row: auto; } }
+.playbtn { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgb(14 26 48 / .72); box-shadow: 0 0 0 2px rgb(255 255 255 / .85); transition: transform .15s, background .15s; }
+.playbtn::after { content: ""; position: absolute; left: 18px; top: 14px; border-left: 14px solid #fff; border-top: 9px solid transparent; border-bottom: 9px solid transparent; }
+.vid.big .playbtn { width: 64px; height: 64px; margin: -32px 0 0 -32px; } .vid.big .playbtn::after { left: 25px; top: 20px; border-left-width: 19px; border-top-width: 12px; border-bottom-width: 12px; }
+.vid:hover .playbtn { background: var(--lg-brand); transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .playbtn { transition: none; } }
+
+/* головний екран: справжній логотип і світіння в кольорах логотипа */
+.hero2 { background: radial-gradient(60% 90% at 88% 20%, rgb(31 127 224 / .32), transparent 60%), radial-gradient(45% 70% at 70% 85%, rgb(229 48 42 / .22), transparent 60%), radial-gradient(40% 60% at 100% 70%, rgb(255 194 26 / .2), transparent 60%), var(--board); }
+.hero2 .mark { width: clamp(150px, 36%, 330px); right: clamp(4px, 2vw, 18px); top: clamp(4px, 1.5vw, 14px); filter: drop-shadow(0 6px 24px rgb(0 0 0 / .35)); }
+.hero2 > .k, .hero2 > h1, .hero2 > .lead { padding-right: clamp(120px, 38%, 340px); }
+.hero2 h1 { font-size: clamp(28px, 4vw, 46px); }
+@media (max-width: 640px) { .hero2 .mark { position: static; width: 70%; max-width: 280px; justify-self: center; order: -1; } .hero2 > .k, .hero2 > h1, .hero2 > .lead { padding-right: 0; } }
+.tally2 b { color: var(--board-ink); }
+.tally2 div { padding-left: 12px; border-left: 3px solid var(--accent); }
+.tally2 div:nth-child(2) { border-color: var(--lg-media); } .tally2 div:nth-child(3) { border-color: var(--lg-brand); } .tally2 div:nth-child(4) { border-color: #fff; }
