@@ -39,7 +39,7 @@
 
     const alias = new Map(); // нормализованный вариант -> нормализованное основное
     const mainDisplay = new Map();
-    for (const [main, variant] of (raw.players.merge || [])) { alias.set(normName(variant), normName(main)); mainDisplay.set(normName(main), main); }
+    for (const [main, variant] of (raw.players.merge || [])) { if (normName(variant) !== normName(main)) alias.set(normName(variant), normName(main)); mainDisplay.set(normName(main), main); }
     for (const sp of (raw.players.split || [])) mainDisplay.set(normName(sp.as), sp.as);
     const splits = raw.players.split || []; // [{name, as, match_ids:[...]} или {name, as, teams:[...]}]
     const splitMap = new Map(), splitTeam = new Map();
@@ -297,7 +297,7 @@
     v.status = t.status || null;
     v.note = t.note || null;
     v.playoff = t.matches.filter(m => t.format === 'cup' && !isRoundStage(m.stage));
-    const fin = v.playoff.find(m => m.stage === 'Финал');
+    const fin = v.playoff.find(m => (m.stage === 'Финал' || m.stage === 'Фінал'));
     const third = v.playoff.find(m => /^За 3/.test(m.stage || ''));
     if (fin) {
       const w = winnerSide(fin);
@@ -314,7 +314,7 @@
     // туры
     const byStage = new Map();
     for (const m of t.matches) {
-      const k = m.stage || 'Без стадии';
+      const k = m.stage || 'Без стадії';
       if (!byStage.has(k)) byStage.set(k, []);
       byStage.get(k).push(m);
     }

@@ -46,7 +46,7 @@
     return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
   }
   function ticks(max, count = 4) { const step = max / count; return Array.from({ length: count + 1 }, (_, i) => +(step * i).toFixed(6)); }
-  const fmtNum = v => (Math.abs(v) >= 100 || Number.isInteger(v) ? Math.round(v).toLocaleString('ru-RU') : v.toLocaleString('ru-RU', { maximumFractionDigits: 2 }));
+  const fmtNum = v => (Math.abs(v) >= 100 || Number.isInteger(v) ? Math.round(v).toLocaleString('uk-UA') : v.toLocaleString('uk-UA', { maximumFractionDigits: 2 }));
 
   function frame(host, height) {
     host.textContent = '';
@@ -87,7 +87,7 @@
       const p = el('path', { d: roundedTop(x, y, w, h, r), fill: color, class: 'mk' }, svg);
       const hit = el('rect', { x: L + i * bw, y: T, width: bw, height: H - T - B, fill: 'transparent', tabindex: 0, style: o.onClick ? 'cursor:pointer' : '' }, svg);
       if (o.onClick) { hit.addEventListener('click', () => { svg.querySelectorAll('.mk.sel').forEach(x => x.classList.remove('sel')); p.classList.add('sel'); o.onClick(i); }); hit.addEventListener('keydown', e => { if (e.key === 'Enter') o.onClick(i); }); }
-      const show = e => { p.classList.add('on'); showTip(e, o.labels[i], [{ value: (o.fmt || fmtNum)(v), label: o.unit || '' }].concat(o.onClick ? [{ value: '', label: 'нажмите, чтобы увидеть матчи' }] : [])); };
+      const show = e => { p.classList.add('on'); showTip(e, o.labels[i], [{ value: (o.fmt || fmtNum)(v), label: o.unit || '' }].concat(o.onClick ? [{ value: '', label: 'натисніть, щоб побачити матчі' }] : [])); };
       hit.addEventListener('pointermove', show); hit.addEventListener('pointerleave', () => { p.classList.remove('on'); hideTip(); });
       hit.addEventListener('focus', e => { const b = hit.getBoundingClientRect(); show({ clientX: b.x + b.width / 2, clientY: b.y }); }); hit.addEventListener('blur', () => { p.classList.remove('on'); hideTip(); });
       if (o.labelAll || v === best) { const t = el('text', { x: x + w / 2, y: y - 5, class: 'val-label', 'text-anchor': 'middle' }, svg); t.textContent = (o.fmt || fmtNum)(v); }
@@ -202,7 +202,7 @@
         const b = svg.getBoundingClientRect(), px = ((e.clientX - b.left) / b.width) * W;
         const i = Math.max(0, Math.min(nr - 1, Math.round(((px - L) / (W - L - R)) * (nr - 1))));
         const pt = s.pts.find(p => p.round === rs[i]);
-        showTip(e, s.name, pt ? [{ value: pt.pos + '-е место', label: rs[i] + ' тур, ' + pt.pts + ' очк.' }] : []);
+        showTip(e, s.name, pt ? [{ value: pt.pos + ' місце', label: rs[i] + ' тур, ' + pt.pts + ' очк.' }] : []);
       });
       hitp.addEventListener('pointerleave', hideTip);
       hitp.addEventListener('click', () => o.onToggle && o.onToggle(s.id));

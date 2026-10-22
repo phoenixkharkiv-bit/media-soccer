@@ -5,7 +5,7 @@
   const Core = root.Core || (typeof require !== 'undefined' ? require('./core.js') : null);
 
   const LEAGUE_IDS = ['chemp', 'media', 'brand'];
-  const BINS = ['1–5', '6–10', '11–15', '16–20', '21–25', '26–30', '31–35', '36–40', '41–45', '46–50', 'доп. время'];
+  const BINS = ['1–5', '6–10', '11–15', '16–20', '21–25', '26–30', '31–35', '36–40', '41–45', '46–50', 'дод. час'];
   const binOf = min => (min == null ? -1 : min > 50 ? 10 : Math.max(0, Math.ceil(min / 5) - 1));
   const STAT_KEYS = ['shots', 'on_target', 'woodwork', 'corners', 'fouls'];
 
