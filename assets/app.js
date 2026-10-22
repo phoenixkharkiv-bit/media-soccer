@@ -3,7 +3,7 @@
   'use strict';
   const Core = window.Core, UK = window.UK;
   const app = document.getElementById('app');
-  let db = null, recs = null, reviewIndex = {};
+  let db = null, recs = null, reviewIndex = {}, videos = { matches: {} };
   const reviewCache = new Map();
 
   /* ---------- утилиты ---------- */
@@ -14,7 +14,11 @@
   const shortDate = d => { const [y, m, dd] = d.split('-'); return `${dd}.${m}.${y.slice(2)}`; };
   const nf = n => n.toLocaleString('uk-UA');
   const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c); };
-  const teamLink = (team, name) => team ? `<a href="#t-${team.id}">${esc(name || team.name)}</a>` : esc(name || '—');
+  // склад клубу «АЖІ (бренд)» показуємо як «АЖІ» з позначкою ліги
+  const SQUAD = /^(.*) \((бренд|медіа)\)$/;
+  const nameHtml = n => { const m = String(n || '').match(SQUAD); if (!m) return esc(n); const md = m[2] === 'медіа'; return `${esc(m[1])}<span class="lgm ${md ? 'm' : 'b'}" title="${md ? 'Медіа-ліга' : 'Бренд-ліга'}">${md ? 'М' : 'Б'}</span>`; };
+  const plainName = n => String(n || '').replace(SQUAD, '$1');
+  const teamLink = (team, name) => team ? `<a href="#t-${team.id}">${nameHtml(name || team.name)}</a>` : nameHtml(name || '—');
   const playerLink = (p, name) => `<a href="#p-${p.id}">${esc(name || p.name)}</a>`;
   const seasonLink = s => `<a href="#s-${s.id}">${esc(s.label)}</a>`;
   const tourHref = t => `#s-${t.season.id}-${t.id}`;
@@ -31,10 +35,10 @@
     const ctx = opts.ctx ? `<span class="ctx">${opts.ctx}</span>` : '';
     return `<a class="mrow" href="#m-${m.id}">
       <span class="d">${shortDate(m.date)}</span>
-      <span class="h${w === 'h' ? ' w' : ''}">${esc(m.homeName)}</span>
+      <span class="h${w === 'h' ? ' w' : ''}">${nameHtml(m.homeName)}</span>
       <span class="sc">${scoreHtml(m)}</span>
-      <span class="a${w === 'a' ? ' w' : ''}">${esc(m.awayName)}</span>
-      <span class="x">${m.tech ? 'тех.' : ''}</span>${ctx}</a>`;
+      <span class="a${w === 'a' ? ' w' : ''}">${nameHtml(m.awayName)}</span>
+      <span class="x">${m.tech ? 'тех.' : ''}${videos.matches[m.id] ? '<span title="Є відео">▶</span>' : ''}</span>${ctx}${opts.note ? `<span class="nt">${esc(opts.note)}</span>` : ''}</a>`;
   }
   function stageCtx(m) {
     const parts = [m.tour.name];
@@ -42,6 +46,144 @@
     if (m.stage) parts.push(m.stage);
     return esc(parts.join(' · ') + ' · ' + m.season.label);
   }
+
+  /* ---------- спливаючі списки матчів ---------- */
+  // будь-яке число в статистиці може відкрити список матчів, з яких воно складається
+  const pops = new Map();
+  let popSeq = 0;
+  const popId = fn => { const id = 'q' + (++popSeq); pops.set(id, fn); return id; };
+  // fn() => { title, sub, items: [{ m, note }] }
+  const popv = (val, fn) => (fn ? `<button type="button" class="popv" data-pop="${popId(fn)}">${val}</button>` : String(val));
+  let modalEl = null, modalBack = null;
+  function closeModal() { if (!modalEl) return; modalEl.remove(); modalEl = null; document.body.style.overflow = ''; if (modalBack) modalBack.focus(); }
+  function openModal(title, sub, body) {
+    closeModal();
+    modalBack = document.activeElement;
+    modalEl = document.createElement('div');
+    modalEl.className = 'modal-bg';
+    modalEl.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mdl-t"><div class="modal-h"><div><h2 id="mdl-t">${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="modal-x" aria-label="Закрити">×</button></div><div class="modal-b">${body}</div></div>`;
+    modalEl.addEventListener('click', e => { if (e.target === modalEl || e.target.closest('.modal-x')) closeModal(); });
+    document.body.appendChild(modalEl);
+    document.body.style.overflow = 'hidden';
+    modalEl.querySelector('.modal-x').focus();
+    return modalEl;
+  }
+  function openMatches(r) {
+    const items = r.items.slice().sort((a, b) => (a.m.date < b.m.date ? 1 : a.m.date > b.m.date ? -1 : 0));
+    const n = items.length;
+    const sub = (r.sub ? esc(r.sub) + ' · ' : '') + n + ' ' + plural(n, 'матч', 'матчі', 'матчів');
+    openModal(esc(r.title), sub, n ? `<div class="mlist">${items.map(x => matchRow(x.m, { ctx: stageCtx(x.m), note: x.note })).join('')}</div>` : '<p class="note">Немає матчів.</p>');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && modalEl) closeModal(); });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-pop]');
+    if (b) { const f = pops.get(b.dataset.pop); if (f) openMatches(f()); return; }
+    if (e.target.closest('[data-report]')) openReport();
+  });
+  window.addEventListener('hashchange', closeModal);
+
+  const inSet = ms => { if (!ms) return () => true; const s = new Set(ms); return m => s.has(m); };
+  const goalsNote = n => n + ' ' + plural(n, 'гол', 'голи', 'голів');
+  function groupByMatch(list, note) {
+    const g = new Map();
+    for (const x of list) { if (!g.has(x.m)) g.set(x.m, []); g.get(x.m).push(x); }
+    return [...g].map(([m, xs]) => ({ m, n: xs.length, note: note(xs) }));
+  }
+  const minNote = xs => xs.map(x => (x.e.min != null ? x.e.min + '′' : '')).filter(Boolean).join(', ');
+  // матчі гравця за показником k (у межах вибірки ms, якщо вона задана)
+  function playerItems(p, k, ms) {
+    const ok = inSet(ms);
+    const goals = p.goals.filter(g => ok(g.m) && !g.e.og);
+    const perMatch = () => groupByMatch(goals, xs => goalsNote(xs.length) + (minNote(xs) ? ': ' + minNote(xs) : ''));
+    const apps = p.apps.filter(a => ok(a.m)).sort((a, b) => (a.m.date < b.m.date ? -1 : 1));
+    const flowHit = test => apps.filter(a => { const fl = Stats.flow(a.m); return fl && test(fl); }).map(a => ({ m: a.m }));
+    switch (k) {
+      case 'apps': case 'seasons': return apps.map(a => ({ m: a.m }));
+      case 'goals': case 'gpm': return perMatch();
+      case 'hat': return perMatch().filter(x => x.n >= 3);
+      case 'brace': return perMatch().filter(x => x.n === 2);
+      case 'pen': case 'free': case 'tenm': return groupByMatch(goals.filter(g => g.e[k]), xs => goalsNote(xs.length) + ' · ' + minNote(xs));
+      case 'late': return groupByMatch(goals.filter(g => g.e.min >= 46 && g.e.min <= 50), minNote);
+      case 'winners': return flowHit(fl => fl.winner && !fl.winner.og && fl.winner.p === p).map(x => { const g = Stats.flow(x.m).winner; return { m: x.m, note: 'переможний гол' + (g.min != null ? ', ' + g.min + '′' : '') }; });
+      case 'firsts': return flowHit(fl => fl.seq.length && !fl.seq[0].g.og && fl.seq[0].g.p === p).map(x => ({ m: x.m, note: 'перший гол матчу' }));
+      case 'streak': {
+        const scored = new Set(goals.map(g => g.m));
+        let cur = [], best = [];
+        for (const a of apps) { if (scored.has(a.m)) { cur.push(a.m); if (cur.length > best.length) best = cur.slice(); } else cur = []; }
+        const per = new Map(perMatch().map(x => [x.m, x.note]));
+        return best.map(m => ({ m, note: per.get(m) }));
+      }
+      case 'yc': case 'rc': return p[k].filter(c => ok(c.m)).map(c => ({ m: c.m, note: (k === 'yc' ? 'попередження' : 'вилучення') + (c.e.min != null ? ', ' + c.e.min + '′' : '') }));
+      case 'fair': return [...playerItems(p, 'yc', ms), ...playerItems(p, 'rc', ms)];
+      case 'mp': return p.mp.filter(c => ok(c.m)).map(c => ({ m: c.m, note: 'незабитий: ' + (UK.HOW[c.e.how] || c.e.how || 'без уточнення') + (c.e.min != null ? ', ' + c.e.min + '′' : '') }));
+      case 'og': return (p.og || []).filter(c => ok(c.m)).map(c => ({ m: c.m, note: 'автогол' }));
+      default: return [];
+    }
+  }
+  const PK = { apps: 'Матчі', seasons: 'Матчі', goals: 'Голи', gpm: 'Голи', hat: 'Хет-трики', brace: 'Дублі', pen: 'Голи з пенальті', free: 'Голи зі штрафних', tenm: 'Голи з 10-метрових', late: 'Голи на 46–50′', winners: 'Переможні голи', firsts: 'Перші голи матчу', streak: 'Найдовша серія з голами', yc: 'Попередження', rc: 'Вилучення', fair: 'Картки', mp: 'Незабиті пенальті', og: 'Автоголи' };
+  const ppop = (p, k, ms) => () => ({ title: p.name + ' · ' + PK[k], items: playerItems(p, k, ms) });
+  // матчі клубу/складу ts за показником k
+  function teamItems(ts, k, ms, extra) {
+    const T = new Set(Array.isArray(ts) ? ts : [ts]);
+    const ok = inSet(ms);
+    const list = [...new Set([...T].flatMap(t => t.matches))].filter(ok).filter(m => !extra || extra(m)).sort((a, b) => (a.date < b.date ? -1 : 1));
+    const out = [];
+    for (const m of list) {
+      const s = T.has(m.home) ? 'h' : 'a';
+      const sc = Core.tableScore(m);
+      if (!sc) { if (k === 'p' || k === 'all') out.push({ m }); continue; }
+      const f = s === 'h' ? sc.gh : sc.ga, a = s === 'h' ? sc.ga : sc.gh;
+      const res = sc.bothLost ? 'L' : f > a ? 'W' : f < a ? 'L' : 'D';
+      let hit = false, note;
+      if (k === 'p' || k === 'all' || k === 'gfpm' || k === 'gapm' || k === 'winPct') hit = true;
+      else if (k === 'w' || k === 'd' || k === 'l') hit = res === k.toUpperCase();
+      else if (k === 'cs') hit = !m.tech && a === 0;
+      else if (k === 'fts') hit = !m.tech && f === 0;
+      else if (k === 'comebacks') { const fl = Stats.flow(m); hit = !!(fl && fl.complete && Core.winnerSide(m) === s && (s === 'h' ? fl.maxDefH : fl.maxDefA) > 0); if (hit) note = 'відігралися з −' + (s === 'h' ? fl.maxDefH : fl.maxDefA); }
+      else if (k === 'yc' || k === 'rc') { const n = m[k].filter(c => c.side === s).length; hit = n > 0; note = n + ' ' + (k === 'yc' ? plural(n, 'попередження', 'попередження', 'попереджень') : plural(n, 'вилучення', 'вилучення', 'вилучень')); }
+      if (hit) out.push({ m, note });
+    }
+    return out;
+  }
+  const TK = { p: 'Матчі', all: 'Матчі', w: 'Перемоги', d: 'Нічиї', l: 'Поразки', cs: 'Сухі матчі', fts: 'Матчі без забитих голів', comebacks: 'Камбеки', yc: 'Матчі з попередженнями', rc: 'Матчі з вилученнями', gfpm: 'Матчі', gapm: 'Матчі', winPct: 'Матчі' };
+  const tpop = (ts, k, ms, label) => () => ({ title: (label || (Array.isArray(ts) ? clubName(ts[0]) : plainName(ts.name))) + ' · ' + TK[k], items: teamItems(ts, k, ms) });
+  // серія команди: матчі між першим і останнім матчем рекордної серії
+  function streakPop(team, at, label, ms) {
+    if (!at) return null;
+    return () => ({ title: plainName(team.name) + ' · ' + label, sub: fmtDate(at.from.date) + ' — ' + fmtDate(at.to.date), items: teamItems(team, 'all', ms, m => m.date >= at.from.date && m.date <= at.to.date) });
+  }
+
+  // горизонтальні смуги з підписаними значеннями: [{ label, href, sub, value, text, pop }]
+  function hbars(items) {
+    if (!items.length) return '<p class="note">Немає даних.</p>';
+    const max = Math.max(...items.map(i => i.value)) || 1;
+    return `<div class="hbars">${items.map((it, i) => `<div class="hbr"><span class="rk">${i + 1}</span><span class="lb">${it.href ? `<a href="${it.href}">${nameHtml(it.label)}</a>` : nameHtml(it.label)}${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</span><span class="tr"><i style="width:${Math.max(1, (it.value / max) * 100)}%"></i></span><span class="vl">${popv(it.text != null ? it.text : it.value, it.pop)}</span></div>`).join('')}</div>`;
+  }
+  // вертикальні стовпчики з числом над кожним: cols [{ label, values: [..], pop }], colors — колір кожного ряду
+  function colsHtml(cols, colors, h = 190) {
+    const max = Math.max(1, ...cols.flatMap(c => c.values));
+    const two = colors.length > 1;
+    return `<div class="cols${two ? ' two' : ''}" style="height:${h}px">${cols.map(c => {
+      const total = c.values.reduce((x, y) => x + y, 0);
+      const id = c.pop && total ? popId(c.pop) : null;
+      return `<button type="button" class="c"${id ? ` data-pop="${id}"` : ' disabled'} aria-label="${esc(c.label)}: ${c.values.join(' / ')}"><span class="v">${c.values.map((v, i) => `<span${two ? ` style="color:${colors[i]}"` : ''}>${v}</span>`).join('')}</span><span class="bx">${c.values.map((v, i) => `<i style="height:${(v / max) * 100}%;background:${colors[i]}"></i>`).join('')}</span><span class="l">${/^\d+–\d+$/.test(c.label) ? `<span class="lf">${esc(c.label)}</span><span class="ls">${esc(c.label.split('–')[1])}′</span>` : esc(c.label)}</span></button>`;
+    }).join('')}</div>`;
+  }
+  // голи вибірки за п'ятихвилинками; type: all/open/pen/tenm/fk/og
+  function minuteCols(ms, type, filterGoal) {
+    const per = Array.from({ length: 10 }, () => []);
+    for (const m of ms) for (const g of m.goals) {
+      const b = Stats.binOf(g.min); if (b < 0 || b > 9) continue;
+      if (type && type !== 'all' && goalType(g) !== type) continue;
+      if (filterGoal && !filterGoal(g, m)) continue;
+      per[b].push({ m, g });
+    }
+    return per.map((list, b) => ({
+      label: Stats.BINS[b], values: [list.length],
+      pop: () => ({ title: 'Голи на ' + Stats.BINS[b] + ' хвилинах', items: [...groupMap(list)].map(([m, xs]) => ({ m, note: xs.map(x => x.g.min + '′ ' + x.g.name).join(', ') })) }),
+    }));
+  }
+  function groupMap(list) { const g = new Map(); for (const x of list) { if (!g.has(x.m)) g.set(x.m, []); g.get(x.m).push(x); } return g; }
 
   /* ---------- шапка, поиск ---------- */
   function setNav(route) {
@@ -52,7 +194,7 @@
     const box = document.getElementById('qres');
     let items = [], act = -1;
     const index = [];
-    for (const t of db.teams.values()) index.push({ kind: 'Команда', label: t.name, extra: t.names.length > 1 ? t.names.filter(n => n !== t.name).join(', ') : '', href: '#t-' + t.id, weight: t.matches.length + 50, keys: t.names.map(Core.normName) });
+    for (const c of clubRows()) index.push({ kind: 'Клуб', label: c.name, extra: c.names.join(', '), href: '#t-' + c.home.id, weight: c.tot.p + 50, keys: c.keys.concat(Core.normName(c.name)) });
     for (const p of db.players.values()) index.push({ kind: 'Гравець', label: p.name, extra: '', href: '#p-' + p.id, weight: p.apps.length + p.archive.length * 5, keys: [...p.spellings.keys()].map(Core.normName) });
     function run() {
       const q = Core.normName(inp.value);
@@ -82,11 +224,7 @@
   }
 
   /* ---------- главная ---------- */
-  function pageHome() {
-    const goals = db.matches.reduce((s, m) => s + m.goals.length, 0);
-    const protoSeasons = db.seasons.filter(s => !s.archive);
-    const first = db.seasons[0].label, last = db.seasons[db.seasons.length - 1].label;
-    const people = [...db.players.values()].filter(p => p.apps.length || p.archive.length).length;
+  function honorTable() {
     const rows = db.seasons.slice().reverse().map(s => {
       const win = t => {
         const v = db.views.get(t.key);
@@ -107,40 +245,250 @@
       }).join('');
       return `<tr><td class="season"><a href="#s-${s.id}">${esc(s.label)}</a></td>${leagues}<td>${T('cup') ? win(T('cup')) : dash}</td><td class="hide-s"><div class="cell">${others || dash}</div></td></tr>`;
     }).join('');
-    const top = recs.topScorers.slice(0, 10);
-    const apps = recs.mostApps.slice(0, 10);
+    return `<div class="tw"><table class="honor"><thead><tr><th>Сезон</th><th>Медіа-ліга</th><th>Бренд-ліга</th><th>Кубок АЖІ</th><th class="hide-s">Інші турніри</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  // останній сезон із протоколами: головний турнір, таблиця, останній ігровий день
+  function latest() {
+    const s = db.seasons.slice().reverse().find(x => !x.archive);
+    const ms = db.matches.filter(m => m.season === s).sort((a, b) => (a.date < b.date ? -1 : 1));
+    const main = s.tournaments.find(t => t.format === 'league') || s.tournaments[0];
+    const v = db.views.get(main.key);
+    const tb = v.tables[0];
+    const lastDate = ms.length ? ms[ms.length - 1].date : null;
+    const day = ms.filter(m => m.date === lastDate);
+    const leader = tb && tb.rows[0] ? tb.rows[0].team : null;
+    const feature = day.find(m => m.home === leader || m.away === leader) || day[0];
+    return { s, main, v, tb, day, feature };
+  }
+  const mono = n => { const w = plainName(n).replace(/[«»"'.]/g, '').split(/[\s-]+/).filter(Boolean); return (w.length === 1 ? w[0].slice(0, 3) : w.slice(0, 2).map(x => x[0]).join('')).toUpperCase(); };
+  const LOGO = '<svg class="mark" viewBox="0 0 40 32" aria-hidden="true"><path d="M2 20c6-9 13-13 22-12" fill="none" stroke="#1f7fe0" stroke-width="3.2" stroke-linecap="round"/><path d="M5 25c7-8 14-11 21-10" fill="none" stroke="#e5302a" stroke-width="3.2" stroke-linecap="round"/><path d="M9 29c6-5 12-7 18-6" fill="none" stroke="#ffc21a" stroke-width="3.2" stroke-linecap="round"/><circle cx="32" cy="19" r="7" fill="#fff"/><path d="M32 15.4l3.3 2.4-1.3 3.9h-4l-1.3-3.9z" fill="#0e1a30"/></svg>';
+  function videoCards(list) {
+    return `<div class="videos">${list.map(({ v, m }) => `<a class="vid" href="#m-${m.id}"><span class="thumb"><img src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" alt="" loading="lazy"><span class="kind${v.kind === 'review' ? ' review' : ''}">${v.kind === 'review' ? 'Огляд' : 'Повний матч'}</span></span>${nameHtml(m.homeName)} – ${nameHtml(m.awayName)} ${esc(Core.scoreText(m))}<span>${esc(m.stage || m.tour.name)} · ${shortDate(m.date)}</span></a>`).join('')}</div>`;
+  }
+  function allVideos() {
+    const out = [];
+    for (const [id, list] of Object.entries(videos.matches || {})) { const m = db.matches.find(x => x.id === id); if (m) for (const v of list) out.push({ v, m }); }
+    return out.sort((a, b) => (a.m.date < b.m.date ? 1 : a.m.date > b.m.date ? -1 : (a.v.kind === 'review') - (b.v.kind === 'review')));
+  }
+  function pageHome() {
+    const goals = db.matches.reduce((s, m) => s + m.goals.length, 0);
+    const first = db.seasons[0].label, last = db.seasons[db.seasons.length - 1].label;
+    const people = [...db.players.values()].filter(p => p.apps.length || p.archive.length).length;
+    const L = latest();
+    const f = L.feature;
+    const vids = allVideos();
+    const fvid = f && videos.matches[f.id];
+    const feature = f ? `<div class="feature">
+        <div class="k">Останній зіграний матч · ${esc(L.main.name)} · ${esc(f.stage || '')} · ${fmtDate(f.date)}</div>
+        <div class="score"><div class="t r">${teamLink(f.home, f.homeName)}</div><a class="s" href="#m-${f.id}">${esc(Core.scoreText(f))}</a><div class="t">${teamLink(f.away, f.awayName)}</div></div>
+        <div class="row"><a href="#m-${f.id}">Протокол матчу</a>${fvid ? `<a href="#m-${f.id}">▶ Відео: ${fvid.map(v => (v.kind === 'review' ? 'огляд' : 'повний матч')).join(' і ')}</a>` : ''}</div>
+        ${L.v.note ? `<div class="banner"><b>!</b><span>${esc(L.v.note)}</span></div>` : ''}
+      </div>` : '';
+    const others = L.day.filter(m => m !== f);
+    const ticker = others.length ? `<div class="ticker" aria-label="Інші матчі останнього ігрового дня">${others.map(m => { const w = Core.winnerSide(m); const sc = m.score || ['–', '–']; return `<a class="tk" href="#m-${m.id}"><span class="h">${esc(m.stage || '')} · ${shortDate(m.date)}</span><span class="${w === 'h' ? 'w' : ''}">${nameHtml(m.homeName)}</span><b>${sc[0]}</b><span class="${w === 'a' ? 'w' : ''}">${nameHtml(m.awayName)}</span><b>${sc[1]}</b></a>`; }).join('')}</div>` : '';
+    const tb = L.tb;
+    const table = tb ? `<div class="pnl"><div class="pnl-h"><h2>Таблиця · ${esc(L.main.name)} ${esc(L.s.label)}</h2><a href="${tourHref(L.main)}">Повна</a></div>
+      <div class="tw"><table><thead><tr><th class="n">#</th><th>Команда</th><th class="n">І</th><th class="n">М’ячі</th><th class="n">О</th></tr></thead><tbody>${tb.rows.map(r => `<tr><td class="n"><span class="pos${tb.complete ? medalCls(r.pos) : ''}">${r.pos}</span></td><td>${teamLink(r.team, r.name)}</td><td class="n">${popv(r.p, tpop(r.team, 'p', L.v.tables[0].matches, plainName(r.name)))}</td><td class="n">${r.gf}–${r.ga}</td><td class="n pts">${r.pts}</td></tr>`).join('')}</tbody></table></div>
+      ${tb.complete ? '' : '<p class="note pad" style="padding-top:10px">Таблиця станом на останній зіграний тур.</p>'}</div>` : '';
+    const top = recs.topScorers.slice(0, 8), apps = recs.mostApps.slice(0, 5);
+    const ldList = (list, val, k) => list.map((p, i) => `<div class="ld"><span class="n">${i + 1}</span><span class="nm">${playerLink(p)}<small>${mainTeams(p) || ''}</small></span><b class="num">${popv(val(p), ppop(p, k))}</b></div>`).join('');
     return `<div class="page">
-      <section class="hero">
-        <div class="eyebrow">Асоціація «Журналістська ініціатива» · Харків</div>
-        <h1>Чемпіонат АЖІ <em>з футзалу</em></h1>
-        <p class="lead">Архів турніру медійників з ${esc(first)} по ${esc(last)}: таблиці, протоколи матчів, команди під усіма їхніми назвами та гравці за всі сезони.</p>
-        <div class="tally" aria-label="Архів у цифрах">
-          <div><b>${db.seasons.length}</b><span>${plural(db.seasons.length, 'сезон', 'сезони', 'сезонів')}</span></div>
-          <div><b>${nf(db.matches.length)}</b><span>матчів</span></div>
-          <div><b>${nf(goals)}</b><span>голів</span></div>
-          <div><b>${nf(people)}</b><span>гравців</span></div>
+      <div class="home">
+        <div class="col">
+          <section class="hero2">
+            ${LOGO}
+            <div class="k">Асоціація «Журналістська ініціатива» · Харків</div>
+            <h1>Чемпіонат АЖІ <em>з футзалу</em></h1>
+            <p class="lead">Архів турніру медійників з ${esc(first)} по ${esc(last)}: таблиці, протоколи, клуби, гравці й відео.</p>
+            <div class="tally2" aria-label="Архів у цифрах">
+              <div><b>${db.seasons.length}</b><span>${plural(db.seasons.length, 'сезон', 'сезони', 'сезонів')}</span></div>
+              <div><b>${nf(db.matches.length)}</b><span>матчів</span></div>
+              <div><b>${nf(goals)}</b><span>голів</span></div>
+              <div><b>${nf(people)}</b><span>гравців</span></div>
+            </div>
+            ${feature}
+          </section>
+          ${ticker}
+          ${vids.length ? `<section class="pnl"><div class="pnl-h"><h2>Відео з каналу турніру</h2><a href="#videos">Усі відео (${vids.length})</a></div><div class="pad">${videoCards(vids.slice(0, 6))}</div></section>` : ''}
+          <section class="pnl"><div class="pnl-h"><h2>Переможці за сезонами</h2><a href="#seasons">Усі сезони</a></div>${honorTable()}</section>
         </div>
-      </section>
-      <section class="block">
-        <div class="sec-head"><h2 class="sec">Переможці за сезонами</h2><span class="note">Протоколи матчів є з ${esc(protoSeasons[0].label)}, ранні сезони — за підсумковими таблицями</span></div>
-        <div class="tw"><table class="honor"><thead><tr><th>Сезон</th><th>Медіа-ліга</th><th>Бренд-ліга</th><th>Кубок АЖІ</th><th class="hide-s">Інші турніри</th></tr></thead><tbody>${rows}</tbody></table></div>
-      </section>
-      <section class="grid2">
-        <div class="block">
-          <div class="sec-head"><h2 class="sec">Найкращі бомбардири</h2><a href="#records">Усі рекорди</a></div>
-          ${playerTable(top, p => p.goals.length, 'Голи')}
-          <p class="note">За протоколами з 2010/11. Голи ранніх сезонів показано на сторінках гравців окремо.</p>
-        </div>
-        <div class="block">
-          <div class="sec-head"><h2 class="sec">Найбільше матчів</h2><a href="#players">Усі гравці</a></div>
-          ${playerTable(apps, p => p.apps.length, 'Матчі')}
-        </div>
-      </section>
+        <aside class="col side">
+          ${table}
+          <section class="pnl"><div class="pnl-h"><h2>Бомбардири за всю історію</h2><a href="#records">Рекорди</a></div>${ldList(top, p => p.goals.length, 'goals')}<p class="note pad" style="padding-top:8px">За протоколами з 2010/11. Натисніть на число, щоб побачити матчі.</p></section>
+          <section class="pnl"><div class="pnl-h"><h2>Найбільше матчів</h2><a href="#players">Усі гравці</a></div>${ldList(apps, p => p.apps.length, 'apps')}</section>
+          <section class="pnl"><div class="pnl-h"><h2>Знайшли неточність?</h2></div><div class="pad"><p class="note" style="margin-bottom:10px">Неправильне ім’я, рахунок чи склад — напишіть нам.</p><button type="button" class="btn pri" data-report="1">Повідомити про неточність</button></div></section>
+        </aside>
+      </div>
     </div>`;
   }
-  function mainTeams(p) { return [...p.teams.values()].sort((a, b) => b.apps - a.apps).slice(0, 2).map(t => teamLink(t.team, [...t.names][0])).join(', '); }
-  function playerTable(list, val, label) {
-    return `<div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="hide-s">Команди</th><th class="n">${label}</th></tr></thead><tbody>${list.map((p, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(p)}</td><td class="hide-s muted">${mainTeams(p)}</td><td class="n pts">${val(p)}</td></tr>`).join('')}</tbody></table></div>`;
+  function pageSeasons() {
+    return `<div class="page"><div class="block"><div class="eyebrow">2003–2022</div><h1 class="title">Сезони</h1><p class="lead">Переможці всіх турнірів. Натисніть на сезон, щоб відкрити таблиці й матчі.</p></div>${honorTable()}</div>`;
+  }
+  function pageVideos() {
+    const list = allVideos();
+    return `<div class="page"><div class="block"><div class="eyebrow">YouTube-канал турніру</div><h1 class="title">Відео</h1><p class="lead">Повні записи й огляди матчів. Відео відкривається на сторінці матчу разом із протоколом.</p></div>
+      ${list.length ? videoCards(list) : '<div class="callout">Відео ще не додано.</div>'}
+      <p class="note">Список оновлюється скриптом tools/youtube/build_videos.py. Усі відео — на <a href="${YT}" target="_blank" rel="noopener">каналі турніру</a>.</p></div>`;
+  }
+  const YT = 'https://www.youtube.com/@%D0%A7%D0%B5%D0%BC%D0%BF%D0%B8%D0%BE%D0%BD%D0%B0%D1%82%D0%90%D0%96%D0%98%D0%BF%D0%BE%D1%84%D1%83%D1%82%D0%B7%D0%B0%D0%BB%D1%83-%D0%BC2%D0%BF';
+  function videoBlock(m) {
+    const list = (videos.matches[m.id] || []).slice().sort((a, b) => (a.kind === 'full' ? -1 : 1) - (b.kind === 'full' ? -1 : 1));
+    if (!list.length) return '';
+    const src = v => `https://www.youtube-nocookie.com/embed/${v.id}`;
+    return `<section class="block"><div class="sec-head"><h2 class="sec">Відео</h2>${list.length > 1 ? `<div class="chipset vtabs" role="group">${list.map((v, i) => `<button type="button" data-vid="${v.id}" aria-pressed="${i === 0}">${v.kind === 'review' ? 'Огляд' : 'Повний матч'}</button>`).join('')}</div>` : ''}</div>
+      <iframe class="player" id="player" src="${src(list[0])}" title="${esc(list[0].title)}" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></section>`;
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-vid]'); if (!b) return;
+    const pl = document.getElementById('player'); if (!pl) return;
+    pl.src = 'https://www.youtube-nocookie.com/embed/' + b.dataset.vid;
+    b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  });
+
+  /* ---------- повідомлення про неточність ---------- */
+  const REPORT_TO = 'jia.ukraine@gmail.com';
+  function openReport() {
+    const page = (document.querySelector('#app h1') || {}).textContent || 'Головна';
+    const el = openModal('Повідомити про неточність', 'Лист піде на ' + REPORT_TO, `<form class="rform" id="rf" novalidate>
+      <label>Сторінка<input id="rf-page" value="${esc(page.trim())}" readonly></label>
+      <label>Що не так<select id="rf-kind"><option>Неправильне ім’я або прізвище</option><option>Неправильний рахунок або автор гола</option><option>Неправильний склад або команда</option><option>Два гравці злиті в одного або навпаки</option><option>Інше</option></select></label>
+      <label>Як правильно<textarea id="rf-text" required placeholder="Опишіть, що виправити. Якщо це ваше ім’я — напишіть, як воно пишеться."></textarea></label>
+      <label>Ваше ім’я та email для відповіді (необов’язково)<input id="rf-from" autocomplete="email"></label>
+      <div class="act"><button type="submit" class="btn pri">Надіслати</button><span class="note" id="rf-msg"></span></div>
+    </form>`);
+    el.querySelector('#rf').addEventListener('submit', e => {
+      e.preventDefault();
+      const text = el.querySelector('#rf-text').value.trim();
+      const msg = el.querySelector('#rf-msg');
+      if (!text) { msg.textContent = 'Напишіть, що саме виправити.'; el.querySelector('#rf-text').focus(); return; }
+      const body = `Сторінка: ${el.querySelector('#rf-page').value}\nПосилання: ${location.href}\nЩо не так: ${el.querySelector('#rf-kind').value}\n\n${text}\n\nВід: ${el.querySelector('#rf-from').value.trim() || 'не вказано'}`;
+      location.href = `mailto:${REPORT_TO}?subject=${encodeURIComponent('Неточність на media-soccer.org: ' + el.querySelector('#rf-page').value)}&body=${encodeURIComponent(body)}`;
+      el.querySelector('.modal-b').innerHTML = `<p>Має відкритися ваша поштова програма з готовим листом — залишиться натиснути «Надіслати».</p><p class="note">Якщо поштова програма не відкрилася, скопіюйте текст і надішліть його на адресу:</p><div class="copybox">${REPORT_TO}</div><div class="copybox" style="white-space:pre-wrap">${esc(body)}</div>`;
+    });
+  }
+  const reportBtn = () => '<p><button type="button" class="report-btn" data-report="1">Повідомити про неточність</button></p>';
+
+  /* ---------- клуб: усі склади на одній сторінці ---------- */
+  const clubName = t => (t.club ? t.club : plainName(t.name));
+  function squadsOf(t) {
+    if (!t.club) return [t];
+    return [...db.teams.values()].filter(x => x.club === t.club && (x.matches.length || x.finishes.length || x.trophies.length))
+      .sort((a, b) => (b.name === t.club) - (a.name === t.club) || b.matches.length - a.matches.length);
+  }
+  const clubHome = t => squadsOf(t)[0] || t;
+  const CAT = t => (t.format === 'league' || ['chemp', 'media', 'brand'].includes(t.id) ? 'league' : t.id === 'cup' ? 'cup' : 'other');
+  const lgChip = t => `<span class="lg-chip ${t.id === 'media' ? 'media' : t.id === 'brand' ? 'brand' : CAT(t) === 'league' ? 'chemp' : 'cup'}">${esc(t.name)}</span>`;
+  const range = list => (list.length ? esc(list[0]) + (list.length > 1 ? '–' + esc(list[list.length - 1]) : '') : '');
+  const clubTabs = new Map();
+  function pageTeam(id) {
+    const focus = db.teams.get(id);
+    if (!focus) return notFound();
+    const sq = squadsOf(focus);
+    if (!sq.includes(focus)) sq.push(focus);
+    const S = new Set(sq);
+    const name = clubName(focus);
+    const multi = sq.length > 1;
+    const sorder = (a, b) => Core.seasonOrder(a) - Core.seasonOrder(b);
+    const seasons = [...new Set(sq.flatMap(t => t.seasons))].sort(sorder);
+    const matches = [...new Set(sq.flatMap(t => t.matches))].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const tot = sq.reduce((o, t) => { for (const k of ['p', 'w', 'd', 'l', 'gf', 'ga']) o[k] += t.totals[k] || 0; return o; }, { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 });
+    const trophies = sq.flatMap(t => t.trophies.map(x => ({ ...x, squad: t }))).sort((a, b) => Core.seasonOrder(b.t.season.label) - Core.seasonOrder(a.t.season.label) || a.place - b.place);
+    const golds = trophies.filter(x => x.place === 1);
+    const fin = sq.flatMap(t => t.finishes.map(f => ({ ...f, squad: t }))).sort((a, b) => Core.seasonOrder(b.t.season.label) - Core.seasonOrder(a.t.season.label));
+    const tp = (k, extra, label) => () => ({ title: (label || name) + ' · ' + TK[k], items: teamItems(sq, k, null, extra) });
+
+    const catPanel = c => {
+      const f = fin.filter(x => CAT(x.t) === c);
+      const tr = trophies.filter(x => CAT(x.t) === c);
+      const ms = matches.filter(m => CAT(m.tour) === c);
+      if (!f.length && !tr.length && !ms.length) return null;
+      const bySeason = new Map();
+      for (const m of ms) { if (!bySeason.has(m.season.label)) bySeason.set(m.season.label, []); bySeason.get(m.season.label).push(m); }
+      const rowPop = (x, k) => (x.t.final ? null : () => ({ title: name + ' · ' + x.t.name + ' ' + x.t.season.label + ' · ' + TK[k], items: teamItems(x.squad, k, null, m => m.tour === x.t) }));
+      return `${tr.length ? `<div class="chips">${tr.map(x => `<span class="chip"><span class="medal m${x.place}">${x.place === 1 ? 'Перемога' : x.place + ' місце'}</span> · ${esc(x.t.season.label)} · ${esc(x.t.name)}${x.name && (SQUAD.test(x.name) || plainName(x.name) !== name) ? ' · ' + nameHtml(x.name) : ''}</span>`).join('')}</div>` : ''}
+        ${f.length ? `<div class="tw"><table><thead><tr><th>Сезон</th><th>Турнір</th><th class="n">Місце</th><th class="n">І</th><th class="n hide-s">В–Н–П</th><th class="n">М’ячі</th><th class="n">О</th></tr></thead><tbody>${f.map(x => `<tr><td>${seasonLink(x.t.season)}</td><td><a href="${tourHref(x.t)}">${c === 'league' ? lgChip(x.t) : esc(x.t.name)}</a>${x.div ? ` <span class="muted">· ${esc(x.div)}</span>` : ''}${SQUAD.test(x.row.name) || plainName(x.row.name) !== name ? ` <span class="muted">${nameHtml(x.row.name)}</span>` : ''}</td><td class="n"><span class="pos${x.complete && x.t.format === 'league' ? medalCls(x.pos) : ''}">${x.pos}</span><span class="muted"> з ${x.n}</span></td><td class="n">${popv(x.row.p, rowPop(x, 'p'))}</td><td class="n hide-s">${popv(x.row.w, x.row.w ? rowPop(x, 'w') : null)}–${popv(x.row.d, x.row.d ? rowPop(x, 'd') : null)}–${popv(x.row.l, x.row.l ? rowPop(x, 'l') : null)}</td><td class="n">${x.row.gf}–${x.row.ga}</td><td class="n pts">${x.row.pts}</td></tr>`).join('')}</tbody></table></div>
+        ${c !== 'league' ? '<p class="note">Місця в групових етапах кубків показано без медалей.</p>' : ''}` : ''}
+        ${bySeason.size ? `<div class="mlist">${[...bySeason.entries()].reverse().map(([lbl, list]) => `<details class="round"><summary>Матчі ${esc(lbl)} <span>${list.length} ${plural(list.length, 'матч', 'матчі', 'матчів')}</span></summary>${list.map(m => matchRow(m, { ctx: stageCtx(m) })).join('')}</details>`).join('')}</div>` : ''}`;
+    };
+    // гравці клубу
+    const own = m => (g => S.has(g.side === 'h' ? m.home : m.away));
+    const sc = Core.scorers(matches.map(m => ({ ...m, goals: m.goals.filter(own(m)) })), 20);
+    const appMap = new Map();
+    for (const m of matches) for (const side of ['h', 'a']) if (S.has(side === 'h' ? m.home : m.away)) for (const x of m.lineups[side]) appMap.set(x.p, (appMap.get(x.p) || 0) + 1);
+    const apps = [...appMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+    const clubGoals = p => () => ({ title: p.name + ' · голи за ' + name, items: groupByMatch(p.goals.filter(g => S.has(g.e.side === 'h' ? g.m.home : g.m.away)), xs => goalsNote(xs.length)) });
+    const clubApps = p => () => ({ title: p.name + ' · матчі за ' + name, items: p.apps.filter(a => S.has(a.side === 'h' ? a.m.home : a.m.away)).map(a => ({ m: a.m })) });
+    const players = (sc.length || apps.length) ? `<div class="grid2"><div class="block"><h2 class="sec">Бомбардири клубу</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Голи</th></tr></thead><tbody>${sc.map((r, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(r.p)}</td><td class="n pts">${popv(r.goals, clubGoals(r.p))}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="block"><h2 class="sec">Найбільше матчів</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Матчі</th></tr></thead><tbody>${apps.map(([p, n], i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(p)}</td><td class="n pts">${popv(n, clubApps(p))}</td></tr>`).join('')}</tbody></table></div></div></div><p class="note">За протоколами з 2010/11. Натисніть на число, щоб побачити матчі.</p>` : null;
+    // суперники
+    const opp = new Map();
+    for (const m of matches) {
+      const mine = S.has(m.home) ? 'h' : 'a', o = mine === 'h' ? m.away : m.home;
+      if (S.has(o)) continue;
+      const s2 = Core.tableScore(m); if (!s2) continue;
+      const f = mine === 'h' ? s2.gh : s2.ga, a = mine === 'h' ? s2.ga : s2.gh;
+      const key = clubHome(o).id;
+      const r = opp.get(key) || { team: clubHome(o), p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, set: new Set(squadsOf(o)) };
+      r.p++; r.gf += f; r.ga += a; if (s2.bothLost || f < a) r.l++; else if (f > a) r.w++; else r.d++;
+      opp.set(key, r);
+    }
+    const opps = [...opp.values()].sort((a, b) => b.p - a.p).slice(0, 20);
+    const vsPop = (r, k) => () => ({ title: name + ' — ' + clubName(r.team) + ' · ' + TK[k], items: teamItems(sq, k, null, m => r.set.has(m.home) || r.set.has(m.away)) });
+    const stats = `${opps.length ? `<section class="block"><h2 class="sec">Найчастіші суперники</h2><div class="tw"><table><thead><tr><th>Суперник</th><th class="n">І</th><th class="n">В</th><th class="n">Н</th><th class="n">П</th><th class="n">М’ячі</th></tr></thead><tbody>${opps.map(r => `<tr><td>${teamLink(r.team, clubName(r.team))}</td>${['p', 'w', 'd', 'l'].map(k => `<td class="n">${popv(r[k], r[k] ? vsPop(r, k) : null)}</td>`).join('')}<td class="n">${r.gf}–${r.ga}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
+      ${sq.filter(t => t.matches.length).map(t => (multi ? `<h2 class="sec">Склад ${nameHtml(t.name)}</h2>` : '') + teamStatsSection(t)).join('')}`;
+    const tabs = [['league', 'Чемпіонат', catPanel('league')], ['cup', 'Кубок АЖІ', catPanel('cup')], ['other', 'Інші кубки', catPanel('other')], ['players', 'Гравці', players], ['stats', 'Статистика', matches.length ? stats : null]].filter(x => x[2]);
+    const key = sq[0].id;
+    const cur = tabs.some(x => x[0] === clubTabs.get(key)) ? clubTabs.get(key) : (tabs[0] || [])[0];
+    // історія назв для клубу з одним складом
+    const nameRuns = [];
+    for (const lbl of focus.seasons) {
+      const names = [...focus.namesBySeason.get(lbl)].join(' / ');
+      const l = nameRuns[nameRuns.length - 1];
+      if (l && l.names === names) l.to = lbl; else nameRuns.push({ names, from: lbl, to: lbl });
+    }
+    const squadsHtml = multi
+      ? `<div class="squads">${sq.map(t => `<a class="squad${t === focus ? ' on' : ''}" href="#t-${t.id}">${nameHtml(t.name)} · ${range(t.seasons)}${t.names.length > 1 ? ' · ' + esc(t.names.filter(n => n !== t.name).map(plainName).join(', ')) : ''}</a>`).join('')}</div><p class="note">Клуб виступав кількома складами: М — у Медіа-лізі, Б — у Бренд-лізі. Нижче — усі склади разом, у таблицях видно, де грав кожен.</p>`
+      : (nameRuns.length > 1 ? `<div class="chips">${nameRuns.map(r => `<span class="chip">${esc(r.names)} · ${esc(r.from)}${r.to !== r.from ? '–' + esc(r.to) : ''}</span>`).join('')}</div>` : '');
+    return `<div class="page">
+      <div class="block">
+        <div class="club-head">
+          <div class="crest" aria-hidden="true">${esc(mono(name))}</div>
+          <div style="display:grid;gap:4px"><div class="eyebrow">Клуб</div><h1 class="title">${esc(name)}</h1>${seasons.length ? `<span class="muted">Сезони ${range(seasons)}</span>` : ''}</div>
+          <div class="facts">
+            <div class="fact"><b>${seasons.length}</b><span>${plural(seasons.length, 'сезон', 'сезони', 'сезонів')}</span></div>
+            <div class="fact"><b>${popv(tot.p, tot.p ? tp('p') : null)}</b><span>матчів у протоколах</span></div>
+            <div class="fact"><b>${popv(tot.w, tot.w ? tp('w') : null)}–${popv(tot.d, tot.d ? tp('d') : null)}–${popv(tot.l, tot.l ? tp('l') : null)}</b><span>перемоги, нічиї, поразки</span></div>
+            <div class="fact"><b>${tot.gf}–${tot.ga}</b><span>м’ячі</span></div>
+            <div class="fact"><b>${golds.length}</b><span>${plural(golds.length, 'титул', 'титули', 'титулів')}</span></div>
+          </div>
+        </div>
+        ${squadsHtml}
+      </div>
+      ${tabs.length ? `<div class="ptabs" role="tablist" data-club="${key}">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === cur}">${l}</button>`).join('')}</div>
+      ${tabs.map(([k, , html]) => `<div class="tabpanel" data-panel="${k}"${k === cur ? '' : ' hidden'}>${html}</div>`).join('')}` : '<div class="callout">Протоколів матчів цього клубу в архіві немає.</div>'}
+      ${reportBtn()}
+    </div>`;
+  }
+  function bindTabs() {
+    const bar = app.querySelector('.ptabs'); if (!bar) return;
+    bar.addEventListener('click', e => {
+      const b = e.target.closest('[data-tab]'); if (!b) return;
+      clubTabs.set(bar.dataset.club, b.dataset.tab);
+      bar.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+      app.querySelectorAll('[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== b.dataset.tab; });
+      Charts.hideTip(); chartMounts.forEach(f => f());
+    });
+  }
+
+  // два головні клуби гравця (склади одного клубу не повторюємо)
+  function clubsOf(teams) {
+    const seen = new Map();
+    for (const t of [...teams.values()].sort((a, b) => b.apps - a.apps)) { const h = clubHome(t.team); if (!seen.has(h.id)) seen.set(h.id, { team: h, name: t.team.club ? clubName(t.team) : plainName([...t.names][0]) }); }
+    return [...seen.values()].slice(0, 2);
+  }
+  function mainTeams(p) { return clubsOf(p.teams).map(c => teamLink(c.team, c.name)).join(', '); }
+  function playerTable(list, val, label, k) {
+    return `<div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="hide-s">Команди</th><th class="n">${label}</th></tr></thead><tbody>${list.map((p, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(p)}</td><td class="hide-s muted">${mainTeams(p)}</td><td class="n pts">${k ? popv(val(p), ppop(p, k)) : val(p)}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
   /* ---------- сезон ---------- */
@@ -168,7 +516,7 @@
     return `<div class="tw"><table><thead><tr><th class="n">#</th><th>Команда</th><th class="n">І</th><th class="n">В</th><th class="n">Н</th><th class="n">П</th><th class="n">М’ячі</th><th class="n hide-s">Різн.</th><th class="n">О</th>${cols}</tr></thead><tbody>${tb.rows.map(r => `<tr>
       <td class="n"><span class="pos${showMedals ? medalCls(r.pos) : ''}">${r.pos}</span></td>
       <td class="team">${teamLink(r.team, r.name)}</td>
-      <td class="n">${r.p}</td><td class="n">${r.w}</td><td class="n">${r.d}</td><td class="n">${r.l}</td>
+      ${['p', 'w', 'd', 'l'].map(k => `<td class="n">${!tb.archive && tb.matches && r[k] ? popv(r[k], tpop(r.team, k, tb.matches, plainName(r.name))) : r[k]}</td>`).join('')}
       <td class="n">${r.gf}–${r.ga}</td><td class="n hide-s">${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td>
       <td class="n pts">${r.pts}</td>${tb.archive ? '' : `<td class="hide-s"><span class="form">${r.form.slice(-5).map(f => `<i class="${f}" title="${f === 'W' ? 'перемога' : f === 'D' ? 'нічия' : 'поразка'}"></i>`).join('')}</span></td>`}</tr>`).join('')}</tbody></table></div>`;
   }
@@ -214,7 +562,7 @@
     }
     const sc = Core.scorers(t.matches, 20);
     if (sc.length) {
-      out += `<section class="grid2"><div class="block"><h2 class="sec">Бомбардири</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th>Команда</th><th class="n">Голи</th><th class="n hide-s">З пен.</th></tr></thead><tbody>${sc.map((r, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(r.p)}</td><td>${[...r.teams.values()].map(x => teamLink(x.team, x.name)).join(', ')}</td><td class="n pts">${r.goals}</td><td class="n muted hide-s">${r.pens || ''}</td></tr>`).join('')}</tbody></table></div></div>${disciplineBlock(t.matches)}</section>`;
+      out += `<section class="grid2"><div class="block"><h2 class="sec">Бомбардири</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th>Команда</th><th class="n">Голи</th><th class="n hide-s">З пен.</th></tr></thead><tbody>${sc.map((r, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(r.p)}</td><td>${[...r.teams.values()].map(x => teamLink(x.team, x.name)).join(', ')}</td><td class="n pts">${popv(r.goals, ppop(r.p, 'goals', t.matches))}</td><td class="n muted hide-s">${r.pens ? popv(r.pens, ppop(r.p, 'pen', t.matches)) : ''}</td></tr>`).join('')}</tbody></table></div></div>${disciplineBlock(t.matches)}</section>`;
     }
     out += tournamentStats(t, v);
     return out;
@@ -261,7 +609,7 @@
     const h2h = db.matches.filter(x => x !== m && ((x.home === m.home && x.away === m.away) || (x.home === m.away && x.away === m.home)));
     return `<div class="page">
       <div class="crumbs"><a href="#s-${m.season.id}">Сезон ${esc(m.season.label)}</a><span class="sep">/</span><a href="${tourHref(m.tour)}">${esc(m.tour.name)}</a>${m.div ? `<span class="sep">/</span><span>${esc(m.div)}</span>` : ''}${m.stage ? `<span class="sep">/</span><span>${esc(m.stage)}</span>` : ''}</div>
-      <h1 class="sr-only">${esc(m.homeName)} — ${esc(m.awayName)} ${esc(Core.scoreText(m))}, ${fmtDate(m.date)}</h1>
+      <h1 class="sr-only">${esc(plainName(m.homeName))} — ${esc(plainName(m.awayName))} ${esc(Core.scoreText(m))}, ${fmtDate(m.date)}</h1>
       <section class="board" aria-label="Рахунок матчу">
         <div class="board-main">
           <div class="board-team h">${teamLink(m.home, m.homeName)}</div>
@@ -271,68 +619,14 @@
         ${sub.length ? `<div class="board-sub">${sub.join(' · ')}</div>` : ''}
         <div class="board-meta">${meta.map(x => `<span>${x}</span>`).join('')}</div>
       </section>
+      ${videoBlock(m)}
       ${m.goals.length && m.score && !m.tech && m.goals.length < m.score[0] + m.score[1] ? `<div class="callout">У протоколі вказано не всі голи: ${m.goals.length} з ${m.score[0] + m.score[1]}.</div>` : ''}
       ${m.goals.length ? `<section class="block"><h2 class="sec">Голи</h2><div class="goals">${goals}</div></section>` : (m.score && m.score[0] + m.score[1] > 0 && !m.tech ? '<div class="callout">Автори голів у протоколі не вказані.</div>' : '')}
       ${m.shootout ? `<section class="block"><h2 class="sec">Післяматчеві пенальті</h2><div class="callout">${m.shootout.map(esc).join(' · ')}</div></section>` : ''}
       <section class="block"><h2 class="sec">Склади</h2><div class="lineups">${lineup('h')}${lineup('a')}</div>${m.mp.length ? `<p class="note">Незабиті пенальті: ${m.mp.map(x => `${playerLink(x.p, x.name)}${x.min != null ? ', ' + x.min + '′' : ''}${x.how ? ' (' + esc(HOW[x.how] || x.how) + ')' : ''}`).join('; ')}</p>` : ''}</section>
       ${stats}
+      ${reportBtn()}
       ${h2h.length ? `<section class="block"><div class="sec-head"><h2 class="sec">Інші зустрічі цих команд</h2><span class="note">${h2h.length}</span></div><div class="mlist">${h2h.slice().reverse().slice(0, 12).map(x => matchRow(x, { ctx: stageCtx(x) })).join('')}</div></section>` : ''}
-    </div>`;
-  }
-
-  /* ---------- команда ---------- */
-  function pageTeam(id) {
-    const t = db.teams.get(id);
-    if (!t) return notFound();
-    const s = t.totals;
-    // названия по сезонам
-    const nameRuns = [];
-    for (const lbl of t.seasons) {
-      const names = [...t.namesBySeason.get(lbl)].join(' / ');
-      const last = nameRuns[nameRuns.length - 1];
-      if (last && last.names === names) last.to = lbl; else nameRuns.push({ names, from: lbl, to: lbl });
-    }
-    const trophies = t.trophies.slice().sort((a, b) => Core.seasonOrder(b.t.season.label) - Core.seasonOrder(a.t.season.label) || a.place - b.place);
-    const golds = trophies.filter(x => x.place === 1).length;
-    const fin = t.finishes.slice().sort((a, b) => Core.seasonOrder(b.t.season.label) - Core.seasonOrder(a.t.season.label));
-    // бомбардиры и игроки команды
-    const sc = Core.scorers(t.matches.map(m => ({ ...m, goals: m.goals.filter(g => (g.side === 'h' ? m.home : m.away) === t) })), 15);
-    const appMap = new Map();
-    for (const m of t.matches) { const side = m.home === t ? 'h' : 'a'; for (const x of m.lineups[side]) appMap.set(x.p, (appMap.get(x.p) || 0) + 1); }
-    const apps = [...appMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
-    // соперники
-    const opp = new Map();
-    for (const m of t.matches) {
-      const o = m.home === t ? m.away : m.home;
-      const sc2 = Core.tableScore(m); if (!sc2) continue;
-      const f = m.home === t ? sc2.gh : sc2.ga, a = m.home === t ? sc2.ga : sc2.gh;
-      const r = opp.get(o.id) || { team: o, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
-      r.p++; r.gf += f; r.ga += a; if (sc2.bothLost || f < a) r.l++; else if (f > a) r.w++; else r.d++;
-      opp.set(o.id, r);
-    }
-    const opps = [...opp.values()].sort((a, b) => b.p - a.p).slice(0, 15);
-    const bySeason = new Map();
-    for (const m of t.matches) { if (!bySeason.has(m.season.label)) bySeason.set(m.season.label, []); bySeason.get(m.season.label).push(m); }
-    return `<div class="page">
-      <div class="block">
-        <div class="eyebrow">Команда</div>
-        <h1 class="title">${esc(t.name)}</h1>
-        ${clubLine(t)}
-        ${t.names.length > 1 || nameRuns.length > 1 ? `<div class="chips">${nameRuns.map(r => `<span class="chip">${esc(r.names)} · ${esc(r.from)}${r.to !== r.from ? '–' + esc(r.to) : ''}</span>`).join('')}</div>` : `<p class="muted">${t.seasons.length ? `Сезони: ${esc(t.seasons[0])}${t.seasons.length > 1 ? '–' + esc(t.seasons[t.seasons.length - 1]) : ''}` : ''}</p>`}
-        <div class="facts">
-          <div class="fact"><b>${t.seasons.length}</b><span>${plural(t.seasons.length, 'сезон', 'сезони', 'сезонів')}</span></div>
-          <div class="fact"><b>${s.p}</b><span>матчів у протоколах</span></div>
-          <div class="fact"><b>${s.w}–${s.d}–${s.l}</b><span>перемоги, нічиї, поразки</span></div>
-          <div class="fact"><b>${s.gf}–${s.ga}</b><span>м’ячі</span></div>
-          <div class="fact"><b>${golds}</b><span>${plural(golds, 'титул', 'титули', 'титулів')}</span></div>
-        </div>
-      </div>
-      ${trophies.length ? `<section class="block"><h2 class="sec">Нагороди</h2><div class="tw"><table><thead><tr><th>Сезон</th><th>Турнір</th><th>Місце</th></tr></thead><tbody>${trophies.map(x => `<tr><td>${seasonLink(x.t.season)}</td><td><a href="${tourHref(x.t)}">${esc(x.t.name)}</a>${x.div ? ` <span class="muted">· ${esc(x.div)}</span>` : ''}${x.name && x.name !== t.name ? ` <span class="muted">(як ${esc(x.name)})</span>` : ''}</td><td><span class="medal m${x.place}">${x.place === 1 ? 'Перемога' : x.place + ' місце'}</span></td></tr>`).join('')}</tbody></table></div></section>` : ''}
-      ${teamStatsSection(t)}
-      ${fin.length ? `<section class="block"><h2 class="sec">За сезонами</h2><div class="tw"><table><thead><tr><th>Сезон</th><th>Турнір</th><th class="n">Місце</th><th class="n">І</th><th class="n hide-s">В–Н–П</th><th class="n">М’ячі</th><th class="n">О</th></tr></thead><tbody>${fin.map(f => `<tr><td>${seasonLink(f.t.season)}</td><td><a href="${tourHref(f.t)}">${esc(f.t.name)}</a>${f.div ? ` <span class="muted">· ${esc(f.div)}</span>` : ''}${f.row.name !== t.name ? ` <span class="muted">(${esc(f.row.name)})</span>` : ''}</td><td class="n"><span class="pos${f.complete && f.t.format === 'league' ? medalCls(f.pos) : ''}">${f.pos}</span><span class="muted"> з ${f.n}</span></td><td class="n">${f.row.p}</td><td class="n hide-s">${f.row.w}–${f.row.d}–${f.row.l}</td><td class="n">${f.row.gf}–${f.row.ga}</td><td class="n pts">${f.row.pts}</td></tr>`).join('')}</tbody></table></div><p class="note">Місця в групових етапах кубків і в незавершених турнірах показано без медалей.</p></section>` : ''}
-      ${sc.length ? `<section class="grid2"><div class="block"><h2 class="sec">Бомбардири команди</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Голи</th></tr></thead><tbody>${sc.map((r, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(r.p)}</td><td class="n pts">${r.goals}</td></tr>`).join('')}</tbody></table></div></div><div class="block"><h2 class="sec">Найбільше матчів</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Матчі</th></tr></thead><tbody>${apps.map(([p, n], i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(p)}</td><td class="n pts">${n}</td></tr>`).join('')}</tbody></table></div></div></section>` : ''}
-      ${opps.length ? `<section class="block"><h2 class="sec">Найчастіше зустрічалися</h2><div class="tw"><table><thead><tr><th>Суперник</th><th class="n">І</th><th class="n">В</th><th class="n">Н</th><th class="n">П</th><th class="n">М’ячі</th></tr></thead><tbody>${opps.map(r => `<tr><td>${teamLink(r.team)}</td><td class="n">${r.p}</td><td class="n">${r.w}</td><td class="n">${r.d}</td><td class="n">${r.l}</td><td class="n">${r.gf}–${r.ga}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
-      ${bySeason.size ? `<section class="block"><h2 class="sec">Усі матчі</h2><div class="mlist">${[...bySeason.entries()].reverse().map(([lbl, ms]) => `<details class="round"><summary>${esc(lbl)} <span>${ms.length} ${plural(ms.length, 'матч', 'матчі', 'матчів')}</span></summary>${ms.map(m => matchRow(m, { ctx: stageCtx(m) })).join('')}</details>`).join('')}</div></section>` : ''}
     </div>`;
   }
 
@@ -363,9 +657,9 @@
         ${spell.length ? `<p class="muted">У протоколах також: ${spell.map(esc).join(', ')}</p>` : ''}
         <div class="facts">
           <div class="fact"><b>${p.apps.length}</b><span>${plural(p.apps.length, 'матч', 'матчі', 'матчів')}</span></div>
-          <div class="fact"><b>${p.goals.length}</b><span>${plural(p.goals.length, 'гол', 'голи', 'голів')}${pens ? `, з них ${pens} з пен.` : ''}</span></div>
+          <div class="fact"><b>${popv(p.goals.length, p.goals.length ? ppop(p, 'goals') : null)}</b><span>${plural(p.goals.length, 'гол', 'голи', 'голів')}${pens ? `, з них ${pens} з пен.` : ''}</span></div>
           <div class="fact"><b>${p.seasonsPlayed.size}</b><span>${plural(p.seasonsPlayed.size, 'сезон', 'сезони', 'сезонів')}</span></div>
-          ${p.hatTricks ? `<div class="fact"><b>${p.hatTricks}</b><span>${plural(p.hatTricks, 'хет-трик', 'хет-трики', 'хет-триків')}</span></div>` : ''}
+          ${p.hatTricks ? `<div class="fact"><b>${popv(p.hatTricks, ppop(p, 'hat'))}</b><span>${plural(p.hatTricks, 'хет-трик', 'хет-трики', 'хет-триків')}</span></div>` : ''}
           ${p.archiveGoals ? `<div class="fact"><b>${p.archiveGoals}</b><span>голів у 2003–2010*</span></div>` : ''}
         </div>
         <div class="chips">${[...p.teams.values()].filter(t => t.apps).sort((a, b) => b.apps - a.apps).map(t => `<span class="chip">${teamLink(t.team, [...t.names].join(' / '))} · ${t.apps} ${plural(t.apps, 'матч', 'матчі', 'матчів')}</span>`).join('')}</div>
@@ -374,7 +668,8 @@
       ${table.length ? `<section class="block"><h2 class="sec">За сезонами</h2><div class="tw"><table><thead><tr><th>Сезон</th><th>Команда</th><th class="n">Матчі</th><th class="n">Голи</th><th class="n"><span class="card y" title="Попередження"></span></th><th class="n"><span class="card r" title="Вилучення"></span></th></tr></thead><tbody>${table.map(r => `<tr><td>${seasonLink(r.season)}</td><td>${teamLink(r.team, [...r.names].join(' / '))}</td><td class="n">${r.apps}</td><td class="n pts">${r.goals || ''}</td><td class="n">${r.y || ''}</td><td class="n">${r.r || ''}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
       ${p.archive.length ? `<section class="block"><h2 class="sec">Ранні сезони</h2><div class="tw"><table><thead><tr><th>Сезон</th><th>Команда</th><th class="n">Голи</th></tr></thead><tbody>${p.archive.slice().sort((a, b) => Core.seasonOrder(b.season.label) - Core.seasonOrder(a.season.label)).map(a => `<tr><td>${seasonLink(a.season)}</td><td>${teamLink(a.team, a.teamName)}</td><td class="n pts">${a.goals}</td></tr>`).join('')}</tbody></table></div><p class="note">* За підсумковими списками бомбардирів старого блогу: там указано лише найкращих снайперів сезону, тому ці голи рахуються окремо й не входять до загального підсумку за протоколами.</p></section>` : ''}
       ${matchesDesc.length ? `<section class="block"><h2 class="sec">Матчі</h2><div class="mlist">${groupBySeason(matchesDesc).map(([lbl, list], k) => `<details class="round"${k === 0 ? ' open' : ''}><summary>${esc(lbl)} <span>${list.length} ${plural(list.length, 'матч', 'матчі', 'матчів')}</span></summary>${list.map(a => { const g = a.m.goals.filter(x => x.p === p && !x.og).length; return matchRow(a.m, { ctx: stageCtx(a.m) + (g ? ` · голів: ${g}` : '') }); }).join('')}</details>`).join('')}</div></section>` : ''}
-      <p class="note">Гравця визначено за написанням імені в протоколах. Якщо двох різних людей записано однаково або одну людину по-різному, це виправлять адміністратори архіву.</p>
+      <p class="note">Гравця визначено за написанням імені в протоколах. Якщо двох різних людей записано однаково або одну людину по-різному, напишіть нам — виправимо.</p>
+      ${reportBtn()}
     </div>`;
   }
   function groupBySeason(apps) {
@@ -384,12 +679,26 @@
   }
 
   /* ---------- списки ---------- */
+  function clubRows() {
+    const seen = new Map();
+    for (const t of db.teams.values()) {
+      if (!t.matches.length && !t.finishes.length && !t.trophies.length) continue;
+      const home = clubHome(t);
+      if (seen.has(home.id)) continue;
+      const sq = squadsOf(t);
+      const seasons = [...new Set(sq.flatMap(x => x.seasons))].sort((a, b) => Core.seasonOrder(a) - Core.seasonOrder(b));
+      const tot = sq.reduce((o, x) => { for (const k of ['p', 'w', 'd', 'l']) o[k] += x.totals[k] || 0; return o; }, { p: 0, w: 0, d: 0, l: 0 });
+      const names = [...new Set(sq.flatMap(x => x.names).map(plainName))].filter(n => n !== clubName(t));
+      seen.set(home.id, { home, sq, name: clubName(t), seasons, tot, names, titles: sq.reduce((n, x) => n + x.trophies.filter(y => y.place === 1).length, 0), keys: sq.flatMap(x => x.names).map(Core.normName) });
+    }
+    return [...seen.values()];
+  }
   function pageTeams() {
-    const list = [...db.teams.values()].sort((a, b) => b.seasons.length - a.seasons.length || b.totals.p - a.totals.p);
+    const list = clubRows().sort((a, b) => b.seasons.length - a.seasons.length || b.tot.p - a.tot.p);
     return `<div class="page">
-      <div class="block"><div class="eyebrow">Усі учасники</div><h1 class="title">Команди</h1><p class="lead">${list.length} ${plural(list.length, 'команда', 'команди', 'команд')}. Якщо команда виступала під різними назвами, їх зібрано на одній сторінці.</p></div>
-      <div class="toolbar"><input id="tf" type="search" placeholder="Знайти команду" aria-label="Знайти команду"></div>
-      <div class="tw"><table><thead><tr><th>Команда</th><th>Сезони</th><th class="n">Матчі</th><th class="n hide-s">В–Н–П</th><th class="n">Титули</th></tr></thead><tbody id="tl">${list.map(t => `<tr data-k="${esc(t.names.map(Core.normName).join(' '))}"><td>${teamLink(t)}${t.names.length > 1 ? `<div class="note">${esc(t.names.filter(n => n !== t.name).join(', '))}</div>` : ''}${t.club ? `<div class="note">клуб «${esc(t.club)}»</div>` : ''}</td><td class="muted">${t.seasons.length ? esc(t.seasons[0]) + (t.seasons.length > 1 ? '–' + esc(t.seasons[t.seasons.length - 1]) : '') + ` <span class="note">(${t.seasons.length})</span>` : ''}</td><td class="n">${t.totals.p || ''}</td><td class="n hide-s">${t.totals.p ? `${t.totals.w}–${t.totals.d}–${t.totals.l}` : ''}</td><td class="n pts">${t.trophies.filter(x => x.place === 1).length || ''}</td></tr>`).join('')}</tbody></table></div>
+      <div class="block"><div class="eyebrow">Усі учасники</div><h1 class="title">Клуби</h1><p class="lead">${list.length} ${plural(list.length, 'клуб', 'клуби', 'клубів')}. Якщо клуб змінював назву або виступав кількома складами в різних лігах, усе зібрано на одній сторінці.</p></div>
+      <div class="toolbar"><input id="tf" type="search" placeholder="Знайти клуб" aria-label="Знайти клуб"></div>
+      <div class="tw"><table><thead><tr><th>Клуб</th><th>Сезони</th><th class="n">Матчі</th><th class="n hide-s">В–Н–П</th><th class="n">Титули</th></tr></thead><tbody id="tl">${list.map(c => `<tr data-k="${esc(c.keys.join(' '))}"><td><a href="#t-${c.home.id}">${esc(c.name)}</a>${c.sq.length > 1 ? ` <span class="muted note">${c.sq.length} ${plural(c.sq.length, 'склад', 'склади', 'складів')}</span>` : ''}${c.names.length ? `<div class="note">${esc(c.names.join(', '))}</div>` : ''}</td><td class="muted">${range(c.seasons)}${c.seasons.length ? ` <span class="note">(${c.seasons.length})</span>` : ''}</td><td class="n">${c.tot.p || ''}</td><td class="n hide-s">${c.tot.p ? `${c.tot.w}–${c.tot.d}–${c.tot.l}` : ''}</td><td class="n pts">${c.titles || ''}</td></tr>`).join('')}</tbody></table></div>
     </div>`;
   }
   function bindTeams() {
@@ -434,8 +743,8 @@
     return `<div class="page">
       <div class="block"><div class="eyebrow">За протоколами 2010–2022</div><h1 class="title">Рекорди</h1><p class="lead">Усе пораховано за опублікованими протоколами. Технічні результати до рекордів матчів не входять.</p></div>
       <section class="grid2">
-        <div class="block"><h2 class="sec">Бомбардири за всю історію</h2>${playerTable(r.topScorers.slice(0, 20), p => p.goals.length, 'Голи')}</div>
-        <div class="block"><h2 class="sec">Найбільше матчів</h2>${playerTable(r.mostApps.slice(0, 20), p => p.apps.length, 'Матчі')}</div>
+        <div class="block"><h2 class="sec">Бомбардири за всю історію</h2>${playerTable(r.topScorers.slice(0, 20), p => p.goals.length, 'Голи', 'goals')}</div>
+        <div class="block"><h2 class="sec">Найбільше матчів</h2>${playerTable(r.mostApps.slice(0, 20), p => p.apps.length, 'Матчі', 'apps')}</div>
       </section>
       <section class="grid2">
         ${mtable(r.biggestWins, 'Найбільші перемоги')}
@@ -443,10 +752,10 @@
       </section>
       <section class="grid2">
         <div class="block"><h2 class="sec">П’ять голів і більше за матч</h2><div class="tw"><table><thead><tr><th>Гравець</th><th class="hide-s">Матч</th><th class="n">Голи</th></tr></thead><tbody>${r.bigGames.map(x => `<tr><td>${playerLink(x.p)}<div class="note">${shortDate(x.m.date)} · ${esc(x.side === 'h' ? x.m.homeName : x.m.awayName)}</div></td><td class="hide-s"><a href="#m-${x.m.id}">${esc(x.m.homeName)} — ${esc(x.m.awayName)} ${esc(Core.scoreText(x.m))}</a></td><td class="n pts">${x.n}</td></tr>`).join('')}</tbody></table></div></div>
-        <div class="block"><h2 class="sec">Хет-трики</h2>${playerTable(r.hatTricks.slice(0, 15), p => p.hatTricks, 'Хет-трики')}</div>
+        <div class="block"><h2 class="sec">Хет-трики</h2>${playerTable(r.hatTricks.slice(0, 15), p => p.hatTricks, 'Хет-трики', 'hat')}</div>
       </section>
       <section class="grid2">
-        <div class="block"><h2 class="sec">Найбільше сезонів</h2>${playerTable(r.mostSeasons.slice(0, 15), p => p.seasonsPlayed.size, 'Сезони')}<p class="note">З урахуванням ранніх сезонів, де гравець потрапив до списку бомбардирів.</p></div>
+        <div class="block"><h2 class="sec">Найбільше сезонів</h2>${playerTable(r.mostSeasons.slice(0, 15), p => p.seasonsPlayed.size, 'Сезони', 'apps')}<p class="note">З урахуванням ранніх сезонів, де гравець потрапив до списку бомбардирів.</p></div>
         ${mtable(r.attendance, 'Найбільше глядачів', 'За даними протоколів, де вказано кількість глядачів.')}
       </section>
     </div>`;
@@ -530,7 +839,8 @@
       const vmax = col.num ? Math.max(0, ...rows.map(r => { const v = col.get ? col.get(r) : null; return typeof v === 'number' && isFinite(v) ? v : 0; })) : 0;
       const cellHtml = (c, r) => {
         if (c.html) return c.html(r);
-        const v = c.get(r); const txt = esc(v == null ? '—' : (c.fmt ? c.fmt(v) : v));
+        const v = c.get(r); let txt = esc(v == null ? '—' : (c.fmt ? c.fmt(v) : v));
+        if (c.pop && typeof v === 'number' && v > 0) txt = popv(txt, c.pop(r));
         if (c === col && c.num && vmax > 0 && typeof v === 'number' && v > 0) return `<span class="db" style="--w:${Math.round(v / vmax * 100)}%"><span>${txt}</span></span>`;
         return txt;
       };
@@ -653,6 +963,8 @@
     el.innerHTML = list.length ? `<div class="block"><div class="sec-head"><h3 class="sub">${esc(title)}</h3><span class="note">${list.length} ${plural(list.length, 'матч', 'матчі', 'матчів')}${list.length > 40 ? ', показано останні 40' : ''}</span></div><div class="mlist">${list.slice(-40).reverse().map(m => matchRow(m, { ctx: (ctx ? ctx(m) + ' · ' : '') + stageCtx(m) })).join('')}</div></div>` : '';
   }
   const goalType = g => (g.og ? 'og' : g.pen ? 'pen' : g.tenm ? 'tenm' : g.free ? 'fk' : 'open');
+  const goalPop = (ms, test, title) => () => ({ title, items: [...groupMap(ms.flatMap(m => m.goals.filter(test).map(g => ({ m, g }))))].map(([m, xs]) => ({ m, note: xs.map(x => (x.g.min != null ? x.g.min + '′ ' : '') + x.g.name).join(', ') })) });
+  const cardPop = (ms, k) => () => ({ title: k === 'rc' ? 'Вилучення' : 'Попередження', items: ms.filter(m => m[k].length).map(m => ({ m, note: m[k].map(c => (c.min != null ? c.min + '′ ' : '') + (c.p ? c.p.name : '')).join(', ') })) });
   const hasTenm = () => db.matches.some(m => m.goals.some(g => g.tenm));
 
   /* --- обзор --- */
@@ -661,21 +973,18 @@
     const att = ms.filter(m => m.att);
     const multi = o.bySeason.length > 1;
     const types = [['all', 'Усі голи'], ['open', 'З гри'], ['pen', SP.pen.label], ...(hasTenm() ? [['tenm', SP.tenm.label]] : []), ['fk', SP.fk.label], ['og', 'Автоголи']];
-    const byMinute = switcher(types, (el, v) => {
-      const vals = v === 'all' ? o.bins : o.binsBy[v];
-      Charts.bars(el, { labels: Stats.BINS.slice(0, 10), values: vals.slice(0, 10), unit: 'голів', color: S(1), height: 240 });
-    });
+    const byMinute = switcher(types, (el, v) => { el.innerHTML = colsHtml(minuteCols(ms, v), [S(1)], 220); });
     const seasons = [...o.seasonBins.keys()];
-    const heat = multi ? chart('heatmap', { rows: seasons, cols: Stats.BINS.slice(0, 10).map(x => x.replace('–', '-')), values: seasons.map(s => o.seasonBins.get(s).slice(0, 10)), unit: 'голів', corner: 'сезон', cellW: 40 }, 0) : '';
+    const heat = multi ? chart('heatmap', { rows: seasons, cols: Stats.BINS.slice(0, 10).map(x => x.replace('–', '-')), values: seasons.map(s => o.seasonBins.get(s).slice(0, 10)), unit: 'голів', corner: 'сезон', cellW: 40, showValues: true, onClick: (i, j) => { const sm = ms.filter(m => m.season.label === seasons[i]); const c = minuteCols(sm, 'all')[j]; openMatches({ ...c.pop(), sub: 'сезон ' + seasons[i] }); } }, 0) : '';
     return `
       <section class="facts big">
         ${kpi(nf(o.played), 'зіграних матчів')}${kpi(nf(o.goals), 'голів')}${kpi(dec(o.gpm), 'голів за матч')}
-        ${kpi(nf(o.pens), 'голів з пенальті')}${o.tenm ? kpi(nf(o.tenm), 'з 10-метрових') : ''}${kpi(nf(o.free), 'зі штрафних ударів')}
-        ${kpi(nf(o.og), 'автоголів')}${kpi(nf(o.yc), 'попереджень')}${kpi(nf(o.rc), 'вилучень')}
+        ${kpi(popv(nf(o.pens), goalPop(ms, g => g.pen, 'Голи з пенальті')), 'голів з пенальті')}${o.tenm ? kpi(popv(nf(o.tenm), goalPop(ms, g => g.tenm, 'Голи з 10-метрових')), 'з 10-метрових') : ''}${kpi(popv(nf(o.free), goalPop(ms, g => g.free, 'Голи зі штрафних ударів')), 'зі штрафних ударів')}
+        ${kpi(popv(nf(o.og), goalPop(ms, g => g.og, 'Автоголи')), 'автоголів')}${kpi(nf(o.yc), 'попереджень')}${kpi(popv(nf(o.rc), cardPop(ms, 'rc')), 'вилучень')}
         ${att.length ? kpi(dec(att.reduce((s, m) => s + m.att, 0) / att.length, 0), 'глядачів у середньому') : ''}
       </section>
-      <section class="block panel"><h3 class="sub">Коли забивають</h3>${byMinute}<p class="note">Голи за п’ятихвилинками, матч триває 2 × 25 хвилин. Перемикайте вид голів.</p></section>
-      ${multi ? `<section class="block panel"><h3 class="sub">Голи за сезонами та хвилинами</h3>${heat}<p class="note">Що темніша клітинка, то більше голів. Наведіть, щоб побачити число.</p></section>` : ''}
+      <section class="block panel"><h3 class="sub">Коли забивають</h3>${byMinute}<p class="note">Голи за п’ятихвилинками, матч триває 2 × 25 хвилин. Натисніть на стовпчик, щоб побачити матчі.</p></section>
+      ${multi ? `<section class="block panel"><h3 class="sub">Голи за сезонами та хвилинами</h3>${heat}<p class="note">Що темніша клітинка, то більше голів. Натисніть на клітинку, щоб побачити матчі.</p></section>` : ''}
       ${raceBlock(ms)}
       ${teamsScatter(ms)}`;
   }
@@ -740,14 +1049,14 @@
       const m = metrics.find(x => x.k === k);
       const list = rows.filter(r => m.get(r) != null && m.get(r) > 0 && (!m.min || m.min(r))).sort((a, b) => m.get(b) - m.get(a)).slice(0, opts.n || 15);
       if (!list.length) { el.innerHTML = '<p class="note">Немає даних для цього показника.</p>'; return; }
-      Charts.hbars(el, { items: list.map(r => ({ label: opts.label(r), sub: opts.sub ? opts.sub(r) : '', value: m.get(r), href: opts.href(r) })), fmt: m.fmt });
+      el.innerHTML = hbars(list.map(r => ({ label: opts.label(r), sub: opts.sub ? opts.sub(r) : '', value: m.get(r), text: m.fmt ? m.fmt(m.get(r)) : m.get(r), href: opts.href(r), pop: opts.pop ? opts.pop(r, k, m) : null })));
       if (m.note) { const p = document.createElement('p'); p.className = 'note'; p.textContent = m.note; el.appendChild(p); }
     });
   }
 
   /* --- игроки --- */
-  const teamsOf = r => [...r.teams.values()].sort((a, b) => b.apps - a.apps).slice(0, 2).map(t => teamLink(t.team, [...t.names][0])).join(', ');
-  const teamsTxt = r => [...r.teams.values()].sort((a, b) => b.apps - a.apps).slice(0, 2).map(t => [...t.names][0]).join(', ');
+  const teamsOf = r => clubsOf(r.teams).map(c => teamLink(c.team, c.name)).join(', ');
+  const teamsTxt = r => clubsOf(r.teams).map(c => c.name).join(', ');
   function statsPlayers(ms) {
     let rows = Stats.playerTable(db, ms);
     if (statsState.team) rows = rows.filter(r => r.teams.has(statsState.team));
@@ -765,24 +1074,24 @@
     ];
     const q = Core.normName(statsState.q || '');
     const trows = q ? rows.filter(r => Core.normName(r.p.name).includes(q)) : rows;
-    return `<section class="block panel"><h3 class="sub">Лідери</h3>${leaders(rows, metrics, { label: r => r.p.name, sub: teamsTxt, href: r => '#p-' + r.p.id })}</section>
+    return `<section class="block panel"><h3 class="sub">Лідери</h3>${leaders(rows, metrics, { label: r => r.p.name, sub: teamsTxt, href: r => '#p-' + r.p.id, pop: (r, k) => ppop(r.p, k, ms) })}<p class="note">Натисніть на число, щоб побачити матчі.</p></section>
       <section class="block"><div class="sec-head"><h3 class="sub">Усі гравці</h3></div>
       <div class="toolbar"><input id="st-q" type="search" placeholder="Знайти гравця" value="${esc(statsState.q || '')}" aria-label="Знайти гравця">
       <label class="muted" for="st-min">Для середніх — не менше</label><input id="st-min" type="number" min="0" max="200" value="${min}" style="width:5em"><span class="muted">матчів</span></div>
       ${sortable({ rows: trows, sort: 'goals', limit: 50, cols: [
         { k: 'name', label: 'Гравець', get: r => r.p.name, html: r => playerLink(r.p), asc: true },
         { k: 'teams', label: 'Команди', html: teamsOf, get: () => '', hideS: true },
-        { k: 'apps', label: 'М', title: 'Матчі', num: true, get: r => r.apps },
-        { k: 'goals', label: 'Голи', num: true, get: r => r.goals },
+        { k: 'apps', label: 'М', title: 'Матчі', num: true, get: r => r.apps, pop: r => ppop(r.p, 'apps', ms) },
+        { k: 'goals', label: 'Голи', num: true, get: r => r.goals, pop: r => ppop(r.p, 'goals', ms) },
         { k: 'gpm', label: 'Г/М', title: 'Голів за матч', num: true, get: r => (r.apps >= min ? r.gpm : null), fmt: v => dec(v, 2) },
-        { k: 'pen', label: SP.pen.short, title: 'Голи з пенальті', num: true, get: r => r.pen },
-        ...(hasTenm() ? [{ k: 'tenm', label: SP.tenm.short, title: 'Голи з 10-метрових', num: true, get: r => r.tenm }] : []),
-        { k: 'free', label: SP.fk.short, title: 'Голи зі штрафних ударів', num: true, get: r => r.free },
-        { k: 'hat', label: 'Хет-тр.', title: 'Три голи й більше в матчі', num: true, get: r => r.hat },
-        { k: 'winners', label: 'Перем.', title: 'Переможні голи', num: true, get: r => r.winners },
-        { k: 'streak', label: 'Серія', title: 'Матчів поспіль із голом', num: true, get: r => r.streak },
-        { k: 'yc', label: 'ЖК', num: true, get: r => r.yc },
-        { k: 'rc', label: 'КК', num: true, get: r => r.rc },
+        { k: 'pen', label: SP.pen.short, title: 'Голи з пенальті', num: true, get: r => r.pen, pop: r => ppop(r.p, 'pen', ms) },
+        ...(hasTenm() ? [{ k: 'tenm', label: SP.tenm.short, title: 'Голи з 10-метрових', num: true, get: r => r.tenm, pop: r => ppop(r.p, 'tenm', ms) }] : []),
+        { k: 'free', label: SP.fk.short, title: 'Голи зі штрафних ударів', num: true, get: r => r.free, pop: r => ppop(r.p, 'free', ms) },
+        { k: 'hat', label: 'Хет-тр.', title: 'Три голи й більше в матчі', num: true, get: r => r.hat, pop: r => ppop(r.p, 'hat', ms) },
+        { k: 'winners', label: 'Перем.', title: 'Переможні голи', num: true, get: r => r.winners, pop: r => ppop(r.p, 'winners', ms) },
+        { k: 'streak', label: 'Серія', title: 'Матчів поспіль із голом', num: true, get: r => r.streak, pop: r => ppop(r.p, 'streak', ms) },
+        { k: 'yc', label: 'ЖК', title: 'Попередження', num: true, get: r => r.yc, pop: r => ppop(r.p, 'yc', ms) },
+        { k: 'rc', label: 'КК', title: 'Вилучення', num: true, get: r => r.rc, pop: r => ppop(r.p, 'rc', ms) },
         { k: 'seasons', label: 'Сез.', title: 'Сезонів', num: true, get: r => r.seasons.size },
       ] })}</section>`;
   }
@@ -801,25 +1110,26 @@
       { k: 'acc', label: 'Удари в створ', get: r => (r.statN >= 5 ? r.acc : null), fmt: pct },
       { k: 'titles', label: 'Титули', get: r => r.team.trophies.filter(x => x.place === 1).length },
     ];
-    return `<section class="block panel"><h3 class="sub">Рейтинг команд</h3>${leaders(rows, metrics, { label: r => r.team.name, href: r => '#t-' + r.team.id })}</section>
+    return `<section class="block panel"><h3 class="sub">Рейтинг команд</h3>${leaders(rows, metrics, { label: r => r.team.name, href: r => '#t-' + r.team.id, pop: (r, k) => (TK[k] ? tpop(r.team, k, ms) : null) })}<p class="note">Натисніть на число, щоб побачити матчі.</p></section>
       ${teamsScatter(ms)}
-      <section class="block"><h3 class="sub">Усі команди</h3>${sortable({ rows, sort: 'w', limit: 100, cols: teamCols(), note: 'Удари, кутові й фоли — за матчами, де ця статистика є в протоколі.' })}</section>`;
+      <section class="block"><h3 class="sub">Усі команди</h3>${sortable({ rows, sort: 'w', limit: 100, cols: teamCols(ms), note: 'Удари, кутові й фоли — за матчами, де ця статистика є в протоколі.' })}</section>`;
   }
-  function teamCols() {
+  function teamCols(ms) {
+    const tp = k => r => tpop(r.team, k, ms);
     return [
       { k: 'name', label: 'Команда', get: r => r.team.name, html: r => teamLink(r.team), asc: true },
-      { k: 'p', label: 'М', num: true, get: r => r.p },
-      { k: 'w', label: 'В', num: true, get: r => r.w }, { k: 'd', label: 'Н', num: true, get: r => r.d }, { k: 'l', label: 'П', num: true, get: r => r.l },
+      { k: 'p', label: 'М', title: 'Матчі', num: true, get: r => r.p, pop: tp('p') },
+      { k: 'w', label: 'В', title: 'Перемоги', num: true, get: r => r.w, pop: tp('w') }, { k: 'd', label: 'Н', title: 'Нічиї', num: true, get: r => r.d, pop: tp('d') }, { k: 'l', label: 'П', title: 'Поразки', num: true, get: r => r.l, pop: tp('l') },
       { k: 'winPct', label: '% В', title: 'Частка перемог', num: true, get: r => r.winPct, fmt: pct },
       { k: 'gfpm', label: 'Заб./м', title: 'Забито за матч', num: true, get: r => r.gfpm, fmt: v => dec(v, 2) },
       { k: 'gapm', label: 'Проп./м', title: 'Пропущено за матч', num: true, get: r => r.gapm, fmt: v => dec(v, 2), asc: true },
-      { k: 'cs', label: 'Сухі', title: 'Матчі без пропущених голів', num: true, get: r => r.cs },
-      { k: 'comebacks', label: 'Камбеки', title: 'Перемоги після того, як команда поступалася', num: true, get: r => r.comebacks },
+      { k: 'cs', label: 'Сухі', title: 'Матчі без пропущених голів', num: true, get: r => r.cs, pop: tp('cs') },
+      { k: 'comebacks', label: 'Камбеки', title: 'Перемоги після того, як команда поступалася', num: true, get: r => r.comebacks, pop: tp('comebacks') },
       { k: 'shots', label: 'Удари/м', num: true, get: r => (r.statN ? r.shots / r.statN : null), fmt: v => dec(v, 1) },
       { k: 'acc', label: 'В створ', title: 'Частка ударів у створ', num: true, get: r => r.acc, fmt: pct },
       { k: 'corners', label: 'Кут./м', num: true, get: r => (r.statN ? r.corners / r.statN : null), fmt: v => dec(v, 1) },
       { k: 'fouls', label: 'Фоли/м', num: true, get: r => (r.statN ? r.fouls / r.statN : null), fmt: v => dec(v, 1), asc: true },
-      { k: 'yc', label: 'ЖК', num: true, get: r => r.yc }, { k: 'rc', label: 'КК', num: true, get: r => r.rc },
+      { k: 'yc', label: 'ЖК', title: 'Попередження', num: true, get: r => r.yc, pop: tp('yc') }, { k: 'rc', label: 'КК', title: 'Вилучення', num: true, get: r => r.rc, pop: tp('rc') },
     ];
   }
   // одна команда: лента формы, соперники, сводка
@@ -835,12 +1145,12 @@
       r.p++; r.gf += f; r.ga += a; if (sc.bothLost || f < a) r.l++; else if (f > a) r.w++; else r.d++; r.last = m;
       opp.set(o.id, r);
     }
-    return `${mine ? teamStatFacts(mine) : ''}
+    return `${mine ? teamStatFacts(mine, ms) : ''}
       ${formBlock(me, ms)}
       <section class="block"><h3 class="sub">Результати проти суперників</h3>
       ${sortable({ rows: [...opp.values()], sort: 'p', limit: 100, cols: [
         { k: 'name', label: 'Суперник', get: r => r.team.name, html: r => teamLink(r.team), asc: true },
-        { k: 'p', label: 'М', num: true, get: r => r.p }, { k: 'w', label: 'В', num: true, get: r => r.w }, { k: 'd', label: 'Н', num: true, get: r => r.d }, { k: 'l', label: 'П', num: true, get: r => r.l },
+        ...[['p', 'М'], ['w', 'В'], ['d', 'Н'], ['l', 'П']].map(([k, label]) => ({ k, label, num: true, get: r => r[k], pop: r => () => ({ title: plainName(me.name) + ' — ' + plainName(r.team.name) + ' · ' + TK[k], items: teamItems(me, k, ms, m => m.home === r.team || m.away === r.team) }) })),
         { k: 'pct', label: '% В', num: true, get: r => r.w / r.p, fmt: pct },
         { k: 'diff', label: 'Різн.', num: true, get: r => r.gf - r.ga, fmt: v => (v > 0 ? '+' : '') + v },
         { k: 'last', label: 'Останній матч', get: r => r.last.date, html: r => `<a href="#m-${r.last.id}">${shortDate(r.last.date)} ${esc(Core.scoreText(r.last))}</a>`, hideS: true },
@@ -868,17 +1178,17 @@
     return `<section class="block panel"><h3 class="sub">Стрічка форми</h3>${chart('formStrip', { rows: [...rows.entries()].map(([label, items]) => ({ label, items })) }, 0)}
       <p class="note">Кожен квадрат — матч: В — перемога, Н — нічия, П — поразка. Обведено матчі найкращої серії перемог (${best.length}). Наведіть, щоб побачити рахунок, натисніть, щоб відкрити протокол.</p></section>`;
   }
-  function teamStatFacts(r) {
+  function teamStatFacts(r, ms) {
     const s = r.streaks ? r.streaks.best : {};
     const at = r.streaks ? r.streaks.at : {};
     const rng = k => (at[k] ? ` title="${esc(fmtDate(at[k].from.date) + ' — ' + fmtDate(at[k].to.date))}"` : '');
     return `<div class="facts">
       ${kpi(pct(r.winPct), 'перемог')}${kpi(dec(r.gfpm, 2) + ' / ' + dec(r.gapm, 2), 'забито / пропущено за матч')}
-      ${kpi(r.cs, 'сухих матчів')}${kpi(r.comebacks, 'перемог після відставання')}
-      <div class="fact"${rng('win')}><b>${s.win || 0}</b><span>перемог поспіль (рекорд)</span></div>
-      <div class="fact"${rng('unbeaten')}><b>${s.unbeaten || 0}</b><span>матчів без поразок поспіль</span></div>
+      ${kpi(popv(r.cs, tpop(r.team, 'cs', ms)), 'сухих матчів')}${kpi(popv(r.comebacks, tpop(r.team, 'comebacks', ms)), 'перемог після відставання')}
+      <div class="fact"${rng('win')}><b>${popv(s.win || 0, streakPop(r.team, at.win, 'перемоги поспіль', ms))}</b><span>перемог поспіль (рекорд)</span></div>
+      <div class="fact"${rng('unbeaten')}><b>${popv(s.unbeaten || 0, streakPop(r.team, at.unbeaten, 'без поразок поспіль', ms))}</b><span>матчів без поразок поспіль</span></div>
       ${r.statN ? kpi(dec(r.shots / r.statN, 1), 'ударів за матч') + kpi(pct(r.acc), 'ударів у створ') + kpi(dec(r.corners / r.statN, 1), 'кутових за матч') + kpi(dec(r.fouls / r.statN, 1), 'фолів за матч') : ''}
-      ${kpi(r.yc + ' / ' + r.rc, 'попереджень / вилучень')}
+      ${kpi(popv(r.yc, tpop(r.team, 'yc', ms)) + ' / ' + popv(r.rc, tpop(r.team, 'rc', ms)), 'попереджень / вилучень')}
     </div>`;
   }
 
@@ -956,15 +1266,14 @@
     const byCell = new Map();
     for (const m of pl) { const hi = Math.min(cap, Math.max(...m.score)), lo = Math.min(capL, Math.min(...m.score)); mx[hi][lo]++; const k = hi + '|' + lo; if (!byCell.has(k)) byCell.set(k, []); byCell.get(k).push(m); }
     const used = mx.map((r, i) => [r, i]).filter(([r]) => r.some(v => v));
-    const d1 = drillBox(), d2 = drillBox();
     const totals = new Map(); for (const m of pl) { const t = Math.min(25, m.score[0] + m.score[1]); if (!totals.has(t)) totals.set(t, []); totals.get(t).push(m); }
     const tk = [...totals.keys()].sort((a, b) => a - b);
     const top = [...byCell.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 5).map(([k, v]) => { const [hi, lo] = k.split('|'); return `${hi}${+hi === cap ? '+' : ''}:${lo}${+lo === capL ? '+' : ''} — ${v.length}`; });
     const sum = (m, k) => (m.stats && m.stats[k] ? m.stats[k][0] + m.stats[k][1] : 0);
     return `<section class="block panel"><h3 class="sub">Найчастіші рахунки</h3>
-        ${chart('heatmap', { rows: used.map(([, i]) => String(i) + (i === cap ? '+' : '')), cols: Array.from({ length: capL + 1 }, (_, j) => String(j) + (j === capL ? '+' : '')), values: used.map(([r]) => r), unit: 'матчів', corner: 'більше : менше', showValues: true, rowW: 110, cellW: 32, cellTitle: (i, j) => `рахунок ${used[i][1]}:${j}`, onClick: (i, j) => fillDrill(d1.id, `Рахунок ${used[i][1]}:${j}`, byCell.get(used[i][1] + '|' + j) || []) }, 0)}
-        <p class="note">Рядок — голи команди, яка забила більше, стовпчик — голи суперника. Найчастіше: ${top.join('; ')}. Натисніть на клітинку, щоб побачити матчі.</p>${d1.html}</section>
-      <section class="block panel"><h3 class="sub">Скільки голів забивають у матчі</h3>${chart('bars', { labels: tk.map(t => t === 25 ? '25+' : String(t)), values: tk.map(t => totals.get(t).length), unit: 'матчів', color: S(1), onClick: i => fillDrill(d2.id, `Голів у матчі: ${tk[i]}${tk[i] === 25 ? '+' : ''}`, totals.get(tk[i])) }, 240)}<p class="note">Натисніть на стовпчик, щоб побачити матчі.</p>${d2.html}</section>
+        ${chart('heatmap', { rows: used.map(([, i]) => String(i) + (i === cap ? '+' : '')), cols: Array.from({ length: capL + 1 }, (_, j) => String(j) + (j === capL ? '+' : '')), values: used.map(([r]) => r), unit: 'матчів', corner: 'більше : менше', showValues: true, rowW: 110, cellW: 32, cellTitle: (i, j) => `рахунок ${used[i][1]}:${j}`, onClick: (i, j) => openMatches({ title: `Рахунок ${used[i][1]}:${j}`, items: (byCell.get(used[i][1] + '|' + j) || []).map(m => ({ m })) }) }, 0)}
+        <p class="note">Рядок — голи команди, яка забила більше, стовпчик — голи суперника. Найчастіше: ${top.join('; ')}. Натисніть на клітинку, щоб побачити матчі.</p></section>
+      <section class="block panel"><h3 class="sub">Скільки голів забивають у матчі</h3>${colsHtml(tk.map(t => ({ label: t === 25 ? '25+' : String(t), values: [totals.get(t).length], pop: () => ({ title: `Голів у матчі: ${t}${t === 25 ? '+' : ''}`, items: totals.get(t).map(m => ({ m })) }) })), [S(1)], 220)}<p class="note">Під стовпчиком — кількість голів у матчі, над ним — скільки таких матчів. Натисніть, щоб побачити матчі.</p></section>
       <section class="grid2">
         ${recordCards('Найбільші перемоги', L.biggest.slice(0, 6), m => '+' + Math.abs(m.score[0] - m.score[1]))}
         ${recordCards('Найрезультативніші', L.highest.slice(0, 6), m => (m.score[0] + m.score[1]) + ' голів')}
@@ -990,12 +1299,12 @@
     const fmtR = r => '';
     const team = statsState.team ? db.teams.get(statsState.team) : null;
     return `${team ? formBlock(team, ms) : '<div class="callout">Виберіть команду у фільтрі, щоб побачити її стрічку форми за сезонами.</div>'}
-      <section class="block panel"><h3 class="sub">Рекордні серії команд</h3>${leaders(rows, [sk('win', 'Перемоги поспіль'), sk('unbeaten', 'Без поразок'), sk('scoring', 'Забивали поспіль'), sk('cs', 'Не пропускали поспіль'), sk('loss', 'Поразки поспіль'), sk('winless', 'Без перемог поспіль')], { label: r => r.team.name, sub: r => { const a = r.streaks.at.win; return ''; }, href: r => '#t-' + r.team.id })}
-        <p class="note">Серії рахуються за всіма матчами вибраного фільтра в порядку дат. Дати серій — на сторінці команди й у таблиці нижче (наведіть на число).</p></section>
-      <section class="block panel"><h3 class="sub">Гравці: матчів поспіль із голом</h3>${chart('hbars', { items: pl.sort((a, b) => b.streak - a.streak).slice(0, 15).map(r => ({ label: r.p.name, sub: teamsTxt(r), value: r.streak, href: '#p-' + r.p.id })) }, 0)}</section>
+      <section class="block panel"><h3 class="sub">Рекордні серії команд</h3>${leaders(rows, [sk('win', 'Перемоги поспіль'), sk('unbeaten', 'Без поразок'), sk('scoring', 'Забивали поспіль'), sk('cs', 'Не пропускали поспіль'), sk('loss', 'Поразки поспіль'), sk('winless', 'Без перемог поспіль')], { label: r => r.team.name, href: r => '#t-' + r.team.id, pop: (r, k, m) => streakPop(r.team, r.streaks.at[k], m.label.toLowerCase(), ms) })}
+        <p class="note">Серії рахуються за всіма матчами вибраного фільтра в порядку дат. Натисніть на число, щоб побачити матчі серії.</p></section>
+      <section class="block panel"><h3 class="sub">Гравці: матчів поспіль із голом</h3>${hbars(pl.sort((a, b) => b.streak - a.streak).slice(0, 15).map(r => ({ label: r.p.name, sub: teamsTxt(r), value: r.streak, href: '#p-' + r.p.id, pop: ppop(r.p, 'streak', ms) })))}</section>
       <section class="block"><h3 class="sub">Таблиця серій</h3>${sortable({ rows, sort: 'win', limit: 100, cols: [
         { k: 'name', label: 'Команда', get: r => r.team.name, html: r => teamLink(r.team), asc: true },
-        ...[['win', 'Перемоги'], ['unbeaten', 'Без пораз.'], ['scoring', 'Забивали'], ['cs', 'Не пропуск.'], ['loss', 'Поразки'], ['winless', 'Без перемог']].map(([k, label]) => ({ k, label, num: true, get: r => r.streaks.best[k], html: r => { const a = r.streaks.at[k]; const v = r.streaks.best[k]; return a && v ? `<span title="${esc(fmtDate(a.from.date) + ' — ' + fmtDate(a.to.date))}">${v}</span>` : String(v || 0); } })),
+        ...[['win', 'Перемоги'], ['unbeaten', 'Без пораз.'], ['scoring', 'Забивали'], ['cs', 'Не пропуск.'], ['loss', 'Поразки'], ['winless', 'Без перемог']].map(([k, label]) => ({ k, label, num: true, get: r => r.streaks.best[k], html: r => { const a = r.streaks.at[k]; const v = r.streaks.best[k]; return a && v ? popv(v, streakPop(r.team, a, label.toLowerCase(), ms)) : String(v || 0); } })),
       ] })}</section>`;
   }
 
@@ -1009,8 +1318,8 @@
     const type = (k, label, scored, bins, field, extra) => `<section class="block panel sp">
         <div class="sp-head"><h3 class="sub">${label}</h3><span class="sp-num">${nf(scored)}<small>${plural(scored, 'гол', 'голи', 'голів')}</small></span></div>
         ${extra || ''}
-        <div class="grid2"><div><h4 class="mini">Коли забивають</h4>${chart('bars', { labels: Stats.BINS.slice(0, 10), values: bins.slice(0, 10), unit: 'голів', color: k === 'fk' ? S(3) : S(1), height: 200 }, 200)}</div>
-        <div><h4 class="mini">Найкращі виконавці</h4>${chart('hbars', { items: pl.filter(r => r[field] > 0).sort((a, b) => b[field] - a[field]).slice(0, 10).map(r => ({ label: r.p.name, sub: teamsTxt(r), value: r[field], href: '#p-' + r.p.id, color: k === 'fk' ? S(3) : S(1) })) }, 0)}</div></div>
+        <div class="grid2"><div><h4 class="mini">Коли забивають</h4>${colsHtml(minuteCols(ms, k), [k === 'fk' ? S(3) : S(1)], 190)}</div>
+        <div><h4 class="mini">Найкращі виконавці</h4>${hbars(pl.filter(r => r[field] > 0).sort((a, b) => b[field] - a[field]).slice(0, 10).map(r => ({ label: r.p.name, sub: teamsTxt(r), value: r[field], href: '#p-' + r.p.id, pop: ppop(r.p, field, ms) })))}</div></div>
       </section>`;
     const missed = `<div class="facts">${kpi(nf(o.missedTotal), 'не забито')}${kpi(nf(missedBy['вратарь']), 'відбив воротар')}${kpi(nf(missedBy['мимо']), 'повз')}${kpi(nf(missedBy['штанга']), 'штанга або поперечина')}${kpi(pct(o.pens / ((o.pens + o.missedTotal) || 1)), 'реалізація')}</div>`;
     const mpRows = pl.filter(r => r.pen + r.mpTotal > 0);
@@ -1021,10 +1330,10 @@
         { k: 'name', label: 'Гравець', get: r => r.p.name, html: r => playerLink(r.p), asc: true },
         { k: 'teams', label: 'Команди', html: teamsOf, get: () => '', hideS: true },
         { k: 'att', label: 'Ударів', num: true, get: r => r.pen + r.mpTotal },
-        { k: 'pen', label: 'Забито', num: true, get: r => r.pen },
-        { k: 'saved', label: 'Воротар', title: 'Відбив воротар', num: true, get: r => r.mpSaved },
-        { k: 'wide', label: 'Повз', num: true, get: r => r.mpWide },
-        { k: 'post', label: 'Штанга', num: true, get: r => r.mpPost },
+        { k: 'pen', label: 'Забито', num: true, get: r => r.pen, pop: r => ppop(r.p, 'pen', ms) },
+        { k: 'saved', label: 'Воротар', title: 'Відбив воротар', num: true, get: r => r.mpSaved, pop: r => ppop(r.p, 'mp', ms) },
+        { k: 'wide', label: 'Повз', num: true, get: r => r.mpWide, pop: r => ppop(r.p, 'mp', ms) },
+        { k: 'post', label: 'Штанга', num: true, get: r => r.mpPost, pop: r => ppop(r.p, 'mp', ms) },
         { k: 'pct', label: 'Реаліз.', num: true, get: r => r.pen / (r.pen + r.mpTotal), fmt: pct },
       ] })}</section>
       <p class="note">* ${SP.pen.note} Незабиті удари в протоколах записано під заголовком «Незабиті пенальті», тому промахи враховано тут. Голи зі штрафних ударів позначено в протоколах словом «штрафний».</p>`;
@@ -1039,10 +1348,10 @@
     const yb = new Array(10).fill(0), rb = new Array(10).fill(0);
     for (const m of ms) { for (const c of m.yc) { const b = Stats.binOf(c.min); if (b >= 0 && b < 10) yb[b]++; } for (const c of m.rc) { const b = Stats.binOf(c.min); if (b >= 0 && b < 10) rb[b]++; } }
     return `<section class="facts big">${kpi(nf(o.yc), 'попереджень')}${kpi(nf(o.rc), 'вилучень')}${kpi(dec(o.yc / (o.played || 1), 2), 'попереджень за матч')}</section>
-      <section class="block panel"><h3 class="sub">Коли показують картки</h3>${legend([{ label: 'попередження', color: S(4) }, { label: 'вилучення', color: S(8) }])}${chart('grouped', { labels: Stats.BINS.slice(0, 10), series: [{ name: 'попередження', values: yb, color: S(4) }, { name: 'вилучення', values: rb, color: S(8) }] }, 230)}</section>
+      <section class="block panel"><h3 class="sub">Коли показують картки</h3>${legend([{ label: 'попередження', color: S(4) }, { label: 'вилучення', color: S(8) }])}${colsHtml(yb.map((y, b) => ({ label: Stats.BINS[b], values: [y, rb[b]], pop: () => ({ title: 'Картки на ' + Stats.BINS[b] + ' хвилинах', items: [...groupMap(ms.flatMap(m => [...m.yc.map(c => ({ m, c, t: 'ЖК' })), ...m.rc.map(c => ({ m, c, t: 'КК' }))]).filter(x => Stats.binOf(x.c.min) === b))].map(([m, xs]) => ({ m, note: xs.map(x => x.t + ' ' + x.c.min + '′ ' + (x.c.p ? x.c.p.name : '')).join(', ') })) }) })), [S(4), S(8)], 210)}<p class="note">Натисніть на стовпчик, щоб побачити матчі.</p></section>
       <section class="grid2">
-        <div class="block panel"><h3 class="sub">Гравці</h3>${leaders(pl, [{ k: 'fair', label: 'Штрафні очки', get: r => r.fair, note: 'За регламентом: вилучення — 5 очок, попередження — 1.' }, { k: 'yc', label: 'Попередження', get: r => r.yc }, { k: 'rc', label: 'Вилучення', get: r => r.rc }], { label: r => r.p.name, sub: teamsTxt, href: r => '#p-' + r.p.id, n: 12 })}</div>
-        <div class="block panel"><h3 class="sub">Команди</h3>${leaders(tt, [{ k: 'fairpm', label: 'Найкоректніші', get: r => 1 / (0.05 + r.fair / r.p), fmt: v => dec(1 / v - 0.05, 2) + ' очк./м', note: 'Штрафні очки за матч: що менше, то вище. Команди від 5 матчів.' }, { k: 'rough', label: 'Найбільше очок за матч', get: r => r.fair / r.p, fmt: v => dec(v, 2) }, { k: 'rc', label: 'Вилучення', get: r => r.rc }], { label: r => r.team.name, href: r => '#t-' + r.team.id, n: 12 })}</div>
+        <div class="block panel"><h3 class="sub">Гравці</h3>${leaders(pl, [{ k: 'fair', label: 'Штрафні очки', get: r => r.fair, note: 'За регламентом: вилучення — 5 очок, попередження — 1.' }, { k: 'yc', label: 'Попередження', get: r => r.yc }, { k: 'rc', label: 'Вилучення', get: r => r.rc }], { label: r => r.p.name, sub: teamsTxt, href: r => '#p-' + r.p.id, n: 12, pop: (r, k) => ppop(r.p, k, ms) })}</div>
+        <div class="block panel"><h3 class="sub">Команди</h3>${leaders(tt, [{ k: 'fairpm', label: 'Найкоректніші', get: r => 1 / (0.05 + r.fair / r.p), fmt: v => dec(1 / v - 0.05, 2) + ' очк./м', note: 'Штрафні очки за матч: що менше, то вище. Команди від 5 матчів.' }, { k: 'rough', label: 'Найбільше очок за матч', get: r => r.fair / r.p, fmt: v => dec(v, 2) }, { k: 'rc', label: 'Вилучення', get: r => r.rc }], { label: r => r.team.name, href: r => '#t-' + r.team.id, n: 12, pop: (r, k) => (k === 'rc' ? tpop(r.team, 'rc', ms) : tpop(r.team, 'yc', ms)) })}</div>
       </section>`;
   }
 
@@ -1053,7 +1362,7 @@
     return `<section class="block panel"><h3 class="sub">Судді: матчі та картки</h3>${big.length >= 3 ? chart('scatter', { points: big.map(r => ({ id: r.name, x: r.n, y: +r.ycpm.toFixed(2), r: r.n, label: r.name, rec: r })), xLabel: 'матчів', yLabel: 'попереджень за матч', labelAll: big.length <= 12, height: 340, tip: p => [{ value: p.rec.n, label: 'матчів' }, { value: dec(p.rec.ycpm, 2), label: 'попереджень за матч' }, { value: dec(p.rec.gpm, 2), label: 'голів за матч' }] }, 340) : ''}<p class="note">Судді від 10 матчів. Що вища точка, то частіше суддя показує картки.</p></section>
       ${sortable({ rows, sort: 'n', limit: 100, cols: [
         { k: 'name', label: 'Суддя', get: r => r.name, asc: true },
-        { k: 'n', label: 'Матчі', num: true, get: r => r.n },
+        { k: 'n', label: 'Матчі', num: true, get: r => r.n, pop: r => () => ({ title: 'Суддя ' + r.name, items: ms.filter(m => m.ref === r.name).map(m => ({ m, note: (m.yc.length || m.rc.length) ? 'ЖК ' + m.yc.length + (m.rc.length ? ', КК ' + m.rc.length : '') : '' })) }) },
         { k: 'span', label: 'Роки', get: r => r.first, html: r => r.first.slice(0, 4) + (r.last.slice(0, 4) !== r.first.slice(0, 4) ? '–' + r.last.slice(0, 4) : '') },
         { k: 'gpm', label: 'Голів/м', num: true, get: r => r.gpm, fmt: v => dec(v, 2) },
         { k: 'ycpm', label: 'ЖК/м', num: true, get: r => r.ycpm, fmt: v => dec(v, 2) },
@@ -1073,7 +1382,7 @@
       ${teamStatFacts(r)}
       <div class="grid2">
         ${seasons.length > 1 ? `<div class="block panel"><h3 class="sub">Результати за сезонами</h3>${legend([{ label: 'перемоги', color: S(1) }, { label: 'нічиї', color: S(4) }, { label: 'поразки', color: S(2) }])}${chart('stacked', { labels: seasons, series: [{ name: 'перемоги', values: per.map(x => x.w), color: S(1) }, { name: 'нічиї', values: per.map(x => x.d), color: S(4) }, { name: 'поразки', values: per.map(x => x.l), color: S(2) }] })}</div>` : ''}
-        <div class="block panel"><h3 class="sub">Коли забиває та пропускає</h3>${legend([{ label: 'забито', color: S(1) }, { label: 'пропущено', color: S(2) }])}${chart('grouped', { labels: Stats.BINS.slice(0, 10), series: [{ name: 'забито', values: r.binsF.slice(0, 10), color: S(1) }, { name: 'пропущено', values: r.binsA.slice(0, 10), color: S(2) }] })}</div>
+        <div class="block panel"><h3 class="sub">Коли забиває та пропускає</h3>${legend([{ label: 'забито', color: S(1) }, { label: 'пропущено', color: S(2) }])}${colsHtml(r.binsF.slice(0, 10).map((v, b) => ({ label: Stats.BINS[b], values: [v, r.binsA[b]], pop: () => ({ title: plainName(t.name) + ' · голи на ' + Stats.BINS[b] + ' хвилинах', items: [...groupMap(t.matches.flatMap(m => m.goals.filter(g => Stats.binOf(g.min) === b && (g.side === 'h' || g.side === 'a')).map(g => ({ m, g }))))].map(([m, xs]) => ({ m, note: xs.map(x => ((x.g.side === 'h') === (m.home === t) ? 'забито ' : 'пропущено ') + x.g.min + '′').join(', ') })) }) })), [S(1), S(2)], 200)}</div>
         ${seasons.length > 1 ? `<div class="block panel"><h3 class="sub">Голів за матч за сезонами</h3>${legend([{ label: 'забито', color: S(1), line: true }, { label: 'пропущено', color: S(2), line: true }])}${chart('line', { labels: seasons, series: [{ name: 'забито', values: per.map(x => +x.gfpm.toFixed(2)), color: S(1) }, { name: 'пропущено', values: per.map(x => +x.gapm.toFixed(2)), color: S(2) }], fmt: v => dec(v, 2) })}</div>` : ''}
         ${placesChart(t)}
       </div>
@@ -1095,16 +1404,16 @@
     return `<section class="block"><h2 class="sec">Статистика гравця</h2>
       <div class="facts">
         ${kpi(dec(p.apps.length ? p.goals.length / p.apps.length : 0, 2), 'голів за матч')}
-        ${kpi(d.winners, 'переможних голів')}${kpi(d.firsts, 'перших голів у матчі')}
-        <div class="fact"${d.streakRange ? ` title="${esc(fmtDate(d.streakRange.from.date) + ' — ' + fmtDate(d.streakRange.to.date))}"` : ''}><b>${d.streak}</b><span>матчів поспіль із голом</span></div>
-        ${kpi(braces + ' / ' + p.hatTricks, 'дублів / хет-триків')}
-        ${att ? kpi(d.pens + ' + ' + d.free + ' з ' + att, 'пенальті + штрафні: забито з ударів*') : ''}
-        ${d.mp.total ? kpi(d.mp.saved + ' / ' + d.mp.wide + ' / ' + d.mp.post, 'не забито: воротар / повз / штанга') : ''}
-        ${kpi(p.yc.length + ' / ' + p.rc.length, 'попереджень / вилучень')}${p.og.length ? kpi(p.og.length, plural(p.og.length, 'автогол', 'автоголи', 'автоголів')) : ''}
+        ${kpi(popv(d.winners, ppop(p, 'winners')), 'переможних голів')}${kpi(popv(d.firsts, ppop(p, 'firsts')), 'перших голів у матчі')}
+        ${kpi(popv(d.streak, ppop(p, 'streak')), 'матчів поспіль із голом')}
+        ${kpi(popv(braces, ppop(p, 'brace')) + ' / ' + popv(p.hatTricks, ppop(p, 'hat')), 'дублів / хет-триків')}
+        ${att ? kpi(popv(d.pens, ppop(p, 'pen')) + ' + ' + popv(d.free, ppop(p, 'free')) + ' з ' + att, 'пенальті + штрафні: забито з ударів*') : ''}
+        ${d.mp.total ? kpi(popv(d.mp.total, ppop(p, 'mp')), 'не забито: ' + d.mp.saved + ' воротар, ' + d.mp.wide + ' повз, ' + d.mp.post + ' штанга') : ''}
+        ${kpi(popv(p.yc.length, ppop(p, 'yc')) + ' / ' + popv(p.rc.length, ppop(p, 'rc')), 'попереджень / вилучень')}${p.og.length ? kpi(popv(p.og.length, ppop(p, 'og')), plural(p.og.length, 'автогол', 'автоголи', 'автоголів')) : ''}
       </div>
       <div class="grid2">
-        ${d.bySeason.length > 1 ? `<div class="block panel"><h3 class="sub">Матчі та голи за сезонами</h3>${legend([{ label: 'матчі', color: S(3) }, { label: 'голи', color: S(1) }])}${chart('grouped', { labels: d.bySeason.map(x => x.s), series: [{ name: 'матчі', values: d.bySeason.map(x => x.apps), color: S(3) }, { name: 'голи', values: d.bySeason.map(x => x.goals), color: S(1) }] })}</div>` : ''}
-        ${p.goals.length >= 5 ? `<div class="block panel"><h3 class="sub">Коли забиває</h3>${chart('bars', { labels: Stats.BINS.slice(0, 10), values: d.bins.slice(0, 10), unit: 'голів', color: S(1) })}</div>` : ''}
+        ${d.bySeason.length > 1 ? `<div class="block panel"><h3 class="sub">Матчі та голи за сезонами</h3>${legend([{ label: 'матчі', color: S(3) }, { label: 'голи', color: S(1) }])}${colsHtml(d.bySeason.map(x => ({ label: x.s, values: [x.apps, x.goals], pop: () => ({ title: p.name + ' · сезон ' + x.s, items: (() => { const per = new Map(playerItems(p, 'goals').map(g => [g.m, g.note])); return playerItems(p, 'apps').filter(a => a.m.season.label === x.s).map(a => ({ m: a.m, note: per.get(a.m) })); })() }) })), [S(3), S(1)], 210)}<p class="note">Натисніть на сезон, щоб побачити матчі.</p></div>` : ''}
+        ${p.goals.length >= 5 ? `<div class="block panel"><h3 class="sub">Коли забиває</h3>${colsHtml(minuteCols(p.goals.map(g => g.m).filter((m, i, a) => a.indexOf(m) === i), 'all', g => g.p === p && !g.og), [S(1)], 190)}</div>` : ''}
         ${d.opponents.length ? `<div class="block"><h3 class="sub">Найбільше голів у ворота</h3><div class="tw"><table><tbody>${d.opponents.map(o => `<tr><td>${teamLink(o.team)}</td><td class="n pts">${o.goals}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
         ${d.mates.length ? `<div class="block"><h3 class="sub">Найчастіше на майданчику разом</h3><div class="tw"><table><tbody>${d.mates.map(o => `<tr><td>${playerLink(o.p)}</td><td class="n">${o.n} ${plural(o.n, 'матч', 'матчі', 'матчів')}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
       </div>
@@ -1139,7 +1448,7 @@
       if (t.format === 'league') out += crossTableHtml(t, tb);
     }
     const tt = Stats.teamTable(db, t.matches).filter(r => r.p);
-    out += `<div class="block"><h3 class="sub">Статистика команд турніру</h3>${sortable({ rows: tt, sort: 'gfpm', limit: 40, cols: teamCols().filter(c => !['winPct', 'firstWin'].includes(c.k)), note: 'Удари, кутові й фоли — за матчами, де ця статистика є в протоколі.' })}</div>`;
+    out += `<div class="block"><h3 class="sub">Статистика команд турніру</h3>${sortable({ rows: tt, sort: 'gfpm', limit: 40, cols: teamCols(t.matches).filter(c => !['winPct', 'firstWin'].includes(c.k)), note: 'Удари, кутові й фоли — за матчами, де ця статистика є в протоколі.' })}</div>`;
     const gr = Stats.goalsByRound(t).filter(x => Core.isRoundStage(x.stage)).sort((a, b) => parseInt(a.stage, 10) - parseInt(b.stage, 10));
     if (gr.length >= 3) out += `<div class="block panel"><h3 class="sub">Голів за матч за турами</h3>${chart('bars', { labels: gr.map(x => parseInt(x.stage, 10) + ''), values: gr.map(x => +(x.goals / x.n).toFixed(1)), unit: 'голів за матч', color: S(1), fmt: v => dec(v, 1) })}</div>`;
     return `<section class="block"><h2 class="sec">Статистика турніру</h2>${out}</section>`;
@@ -1170,7 +1479,8 @@
     else if (h === 'players') { html = pagePlayers(); nav = 'players'; }
     else if (h === 'records') { html = pageRecords(); nav = 'records'; }
     else if ((m = h.match(/^stats(?:-(players|teams|compare|matches|streaks|setpieces|cards|refs))?$/))) { html = pageStats(m[1] || ''); nav = 'stats'; }
-    else if (h === 'seasons') { html = pageHome(); nav = 'home'; }
+    else if (h === 'seasons') { html = pageSeasons(); nav = 'seasons'; }
+    else if (h === 'videos') { html = pageVideos(); nav = 'videos'; }
     else if ((m = h.match(/^s-(\d{4}(?:-\d{2})?)(?:-([a-z]+))?$/))) { html = pageSeason(m[1], m[2]); nav = 'seasons'; }
     else if ((m = h.match(/^m-(.+)$/))) { html = pageMatch(m[1]); nav = 'seasons'; }
     else if ((m = h.match(/^t-(.+)$/))) { html = pageTeam(m[1]); nav = 'teams'; }
@@ -1178,16 +1488,31 @@
     else if ((m = h.match(/^r-(\d{4}-\d{2}-\d{2}-\d+)$/))) { html = pageReview(m[1]); nav = 'seasons'; }
     else html = notFound();
     chartMounts = [];
+    pops.clear();
     app.innerHTML = html;
     runMounts();
     setNav(nav);
     document.title = titleFor(h);
     app.querySelectorAll('[data-href]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.href; }));
     if (h === 'teams') bindTeams();
+    bindTabs();
+    markStrip(h);
     if (h === 'players') bindPlayers();
     if (nav === 'stats') { const tab = (h.match(/^stats-?(.*)$/) || [])[1] || ''; bindStatsFilters(tab); renderStatsBody(tab); }
     app.querySelectorAll('.to-stats').forEach(a => a.addEventListener('click', () => { statsState.team = a.dataset.team || ''; statsState.kind = 'all'; statsState.from = ''; statsState.to = ''; }));
     window.scrollTo(0, 0);
+  }
+  // полоса сезонів у шапці
+  function renderStrip() {
+    const el = document.getElementById('strip'); if (!el) return;
+    el.innerHTML = db.seasons.slice().reverse().map(s => `<a href="#s-${s.id}" data-sid="${s.id}">${esc(s.label)}</a>`).join('');
+  }
+  function markStrip(h) {
+    let sid = null, m;
+    if ((m = h.match(/^s-(\d{4}(?:-\d{2})?)/))) sid = m[1];
+    else if ((m = h.match(/^m-(.+)$/))) { const x = db.matches.find(y => y.id === m[1]); if (x) sid = x.season.id; }
+    else if ((m = h.match(/^r-/))) { const f = findReview(h.slice(2)); if (f) sid = f.sid; }
+    document.querySelectorAll('#strip a').forEach(a => { const on = a.dataset.sid === sid; a.classList.toggle('on', on); if (on) a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
   }
   function titleFor(h) {
     const base = 'Чемпіонат АЖІ з футзалу';
@@ -1198,11 +1523,13 @@
   /* ---------- загрузка ---------- */
   async function load() {
     const get = u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ': ' + r.status); return r.json(); });
-    const [idx, teams, players, rindex] = await Promise.all([get('data/seasons.json'), get('data/teams.json'), get('data/players.json'), get('data/reviews/index.json').catch(() => ({}))]);
+    const [idx, teams, players, rindex, vids] = await Promise.all([get('data/seasons.json'), get('data/teams.json'), get('data/players.json'), get('data/reviews/index.json').catch(() => ({})), get('data/videos.json').catch(() => ({ matches: {} }))]);
     reviewIndex = UK.reviewIndex(rindex);
     const seasons = (await Promise.all(idx.seasons.map(id => get(`data/seasons/${id}.json`)))).map(UK.season);
     db = Core.build({ seasons, teams: UK.teams(teams), players: UK.players(players) });
     recs = Core.records(db);
+    videos = vids;
+    renderStrip();
     initSearch();
     route();
   }
