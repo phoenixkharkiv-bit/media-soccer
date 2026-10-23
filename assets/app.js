@@ -383,6 +383,94 @@
     b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
 
+  /* ---------- матч: порівняння команд і очні зустрічі ---------- */
+  function h2hSection(m) {
+    // клуб із кількома складами — усі його склади; матч складів одного клубу — лише ці два склади
+    const same = clubHome(m.home) === clubHome(m.away);
+    const A = new Set(same ? [m.home] : squadsOf(m.home)), B = new Set(same ? [m.away] : squadsOf(m.away));
+    const nA = same ? plainName(m.homeName) : clubName(m.home), nB = same ? plainName(m.awayName) : clubName(m.away);
+    const side = (x, S) => (S.has(x.home) ? 'h' : S.has(x.away) ? 'a' : null);
+    const persp = (x, S) => { const sc = Core.tableScore(x); if (!sc) return null; const s = side(x, S); const f = s === 'h' ? sc.gh : sc.ga, a = s === 'h' ? sc.ga : sc.gh; return { f, a, res: sc.bothLost ? 'L' : f > a ? 'W' : f < a ? 'L' : 'D', tech: !!x.tech }; };
+    const meets = db.matches.filter(x => (A.has(x.home) && B.has(x.away)) || (B.has(x.home) && A.has(x.away))).sort((a, b) => (a.date < b.date ? -1 : 1));
+    let out = '';
+
+    // 1. порівняння перед матчем: цей турнір (і група), лише матчі до цього
+    const before = m.tour.matches.filter(x => x.date < m.date && (!m.div || x.div === m.div));
+    const st = Core.standings(before);
+    const rowOf = t => { const i = st.findIndex(r => r.team === t); return i < 0 ? null : { ...st[i], pos: i + 1 }; };
+    const rA = rowOf(m.home), rB = rowOf(m.away);
+    if (rA && rB && rA.p && rB.p) {
+      const cs = t => before.filter(x => (x.home === t || x.away === t) && !x.tech && Core.tableScore(x) && (x.home === t ? Core.tableScore(x).ga : Core.tableScore(x).gh) === 0).length;
+      const rows = [
+        ['Місце в таблиці', rA.pos, rB.pos, false], ['Очки', rA.pts, rB.pts, true], ['Перемоги', rA.w, rB.w, true], ['Нічиї', rA.d, rB.d, null], ['Поразки', rA.l, rB.l, false],
+        ['Забито', rA.gf, rB.gf, true], ['Пропущено', rA.ga, rB.ga, false], ['Різниця м’ячів', rA.gf - rA.ga, rB.gf - rB.ga, true], ['Сухі матчі', cs(m.home), cs(m.away), true],
+      ];
+      const tp = (t, nm, k) => () => ({ title: nm + ' · ' + TK[k] + ' до матчу', items: teamItems(t, k, before) });
+      const pops = { 'Перемоги': 'w', 'Нічиї': 'd', 'Поразки': 'l', 'Сухі матчі': 'cs' };
+      out += `<div class="cmp"><div class="cmp-h"><span class="t">${crest(m.home, 'md')}${nameHtml(m.homeName)}</span><span class="m">Перед матчем · ${esc(m.tour.name)}${m.div ? ' · ' + esc(m.div) : ''} · ${rA.p === rB.p ? rA.p + ' ' + plural(rA.p, 'матч', 'матчі', 'матчів') : 'матчі ' + rA.p + ' і ' + rB.p}</span><span class="t r">${nameHtml(m.awayName)}${crest(m.away, 'md')}</span></div>
+        ${rows.map(([lab, a, b, more]) => {
+          const va = lab === 'Місце в таблиці' ? 1 / a : a, vb = lab === 'Місце в таблиці' ? 1 / b : b;
+          const mx = Math.max(Math.abs(va), Math.abs(vb)) || 1;
+          const lead = more === null || a === b ? '' : ((more ? a > b : a < b) ? ' la' : ' lb');
+          const k = pops[lab];
+          return `<div class="cm-r${lead}"><b>${popv(lab === 'Різниця м’ячів' && a > 0 ? '+' + a : a, k && a ? tp(m.home, plainName(m.homeName), k) : null)}</b><span class="cm-b l"><i style="width:${Math.max(0, va) / mx * 100}%"></i></span><span class="cm-l">${lab}</span><span class="cm-b r"><i style="width:${Math.max(0, vb) / mx * 100}%"></i></span><b class="r">${popv(lab === 'Різниця м’ячів' && b > 0 ? '+' + b : b, k && b ? tp(m.away, plainName(m.awayName), k) : null)}</b></div>`;
+        }).join('')}</div>`;
+      // кільця: зовнішнє — господарі, внутрішнє — гості
+      const arc = (r, p, col, w) => { const c = 2 * Math.PI * r; return `<circle cx="66" cy="66" r="${r}" fill="none" stroke="var(--line-soft)" stroke-width="${w}"/><circle cx="66" cy="66" r="${r}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(c * p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 66 66)"/>`; };
+      const q = (n, d) => (d ? n / d : 0);
+      const rings = [['Очки від можливих', q(rA.pts, rA.p * 3), q(rB.pts, rB.p * 3)], ['Матчі з перемогою', q(rA.w, rA.p), q(rB.w, rB.p)], ['Матчі без поразки', q(rA.w + rA.d, rA.p), q(rB.w + rB.d, rB.p)], ['Матчі «на нуль»', q(cs(m.home), rA.p), q(cs(m.away), rB.p)]];
+      out += `<div class="rings">${rings.map(([t, a, b]) => `<div class="ring"><svg viewBox="0 0 132 132" role="img" aria-label="${esc(t)}: ${esc(plainName(m.homeName))} ${Math.round(a * 100)}%, ${esc(plainName(m.awayName))} ${Math.round(b * 100)}%">${arc(58, a, 'var(--accent)', 9)}${arc(44, b, 'var(--lg-media)', 7)}<text x="66" y="66" text-anchor="middle" class="rg-a">${Math.round(a * 100)}%</text><text x="66" y="86" text-anchor="middle" class="rg-b">${Math.round(b * 100)}%</text></svg><span class="t">${esc(t)}</span></div>`).join('')}<div class="ring-key"><span><i style="background:var(--accent)"></i>${nameHtml(m.homeName)}</span><span><i style="background:var(--lg-media)"></i>${nameHtml(m.awayName)}</span></div></div>`;
+    }
+
+    // 2. форма: 5 останніх матчів кожної команди до цього, у будь-якому турнірі
+    const form = (t, nm) => {
+      const list = t.matches.filter(x => x.date < m.date && Core.tableScore(x)).sort((a, b) => (a.date < b.date ? -1 : 1)).slice(-5);
+      if (!list.length) return '';
+      const mx = Math.max(1, ...list.map(x => { const p = persp(x, new Set([t])); return Math.max(p.f, p.a); }));
+      return `<div class="frm"><div class="frm-h">${crest(t, 'md')}<span>${nameHtml(nm)}<small>Форма · ${list.length} ${plural(list.length, 'матч', 'матчі', 'матчів')} до цього</small></span></div>
+        <div class="frm-c">${list.map(x => { const p = persp(x, new Set([t])); const o = x.home === t ? x.awayName : x.homeName; return `<a class="fc ${p.res}" href="#m-${x.id}" title="${esc(shortDate(x.date) + ' · ' + x.tour.name)}"><b>${p.tech ? 'тех.' : p.f + ':' + p.a}</b><small>${esc(plainName(o))}</small></a>`; }).join('')}</div>
+        <div class="frm-g">${list.map(x => { const p = persp(x, new Set([t])); return `<div class="g"><span class="u" style="height:${p.f / mx * 100}%"></span><span class="d" style="height:${p.a / mx * 100}%"></span></div>`; }).join('')}</div><div class="frm-k"><span>▲ забиті</span><span>▼ пропущені</span></div></div>`;
+    };
+    const fA = form(m.home, m.homeName), fB = form(m.away, m.awayName);
+    if (fA || fB) out += `<div class="frms">${fA}${fB}</div>`;
+
+    // 3. очні зустрічі: підсумок
+    let w = 0, d = 0, l = 0, gf = 0, ga = 0, n = 0;
+    for (const x of meets) { const p = persp(x, A); if (!p) continue; n++; if (p.res === 'W') w++; else if (p.res === 'D') d++; else l++; if (!p.tech) { gf += p.f; ga += p.a; } }
+    const mp = (k, title) => () => ({ title: nA + ' — ' + nB + ' · ' + title, items: meets.filter(x => { const p = persp(x, A); return p && (k === 'all' || p.res === k); }).map(x => ({ m: x })) });
+    if (n > 1 || (n === 1 && meets[0] !== m)) {
+      const played = meets.filter(x => Core.tableScore(x) && !x.tech);
+      out += `<div class="h2h"><div class="h2h-t">${crest(m.home, 'xl')}<span>${esc(nA)}</span></div>
+        <div class="h2h-m"><div class="h2h-big"><b class="w">${popv(w, w ? mp('W', 'перемоги ' + nA) : null)}</b><i>–</i><b>${popv(d, d ? mp('D', 'нічиї') : null)}</b><i>–</i><b class="l">${popv(l, l ? mp('L', 'перемоги ' + nB) : null)}</b></div>
+        <div class="h2h-lg"><span>Перемоги ${esc(nA)}</span><span>Нічиї</span><span>Перемоги ${esc(nB)}</span></div>
+        <div class="h2h-ag">${popv(n, mp('all', 'усі очні зустрічі'))} ${plural(n, 'матч', 'матчі', 'матчів')} · м’ячі <b>${gf}:${ga}</b>${played.length ? ` · у середньому ${dec(gf / played.length, 1)} : ${dec(ga / played.length, 1)}` : ''}</div></div>
+        <div class="h2h-t r">${crest(m.away, 'xl')}<span>${esc(nB)}</span></div></div>`;
+      // рекорди очних зустрічей
+      const big = s => played.filter(x => persp(x, s).res === 'W').sort((a, b) => { const pa = persp(a, s), pb = persp(b, s); return (pb.f - pb.a) - (pa.f - pa.a) || pb.f - pa.f; })[0];
+      const most = played.slice().sort((a, b) => (b.score[0] + b.score[1]) - (a.score[0] + a.score[1]))[0];
+      const bA = big(A), bB = big(B);
+      const rec = (lab, x) => (x ? `<a class="h2r" href="#m-${x.id}"><span>${lab}</span><b>${nameHtml(x.homeName)} ${esc(Core.scoreText(x))} ${nameHtml(x.awayName)}</b><small>${shortDate(x.date)} · ${esc(x.tour.name)}</small></a>` : '');
+      // бомбардири очних зустрічей
+      const sc = new Map();
+      for (const x of meets) for (const g of x.goals) if (!g.og && g.p) { const r = sc.get(g.p) || { p: g.p, n: 0, side: A.has(g.side === 'h' ? x.home : x.away) ? 'a' : 'b' }; r.n++; sc.set(g.p, r); }
+      const top = [...sc.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+      const mxs = top.length ? top[0].n : 1;
+      const card = x => {
+          const goals = x.goals.filter(g => !g.og && g.p); const per = new Map(); for (const g of goals) per.set(g.p, (per.get(g.p) || 0) + 1);
+          const cur = x === m;
+          return `<a class="mt${cur ? ' cur' : ''}${x === most ? ' top' : ''}" href="#m-${x.id}"><span class="mt-i"><b>${fmtDate(x.date)}${cur ? '<em>цей матч</em>' : x === most ? '<em>найрезультативніша</em>' : ''}</b><small>${esc(x.tour.name)}${x.stage ? ' · ' + esc(x.stage) : ''} · ${esc(x.season.label)}</small>${per.size ? `<small>Голи: ${[...per].map(([p, k]) => esc(p.name) + (k > 1 ? ' ' + k : '')).join(', ')}</small>` : ''}</span>
+            <span class="mt-s"><span class="h">${nameHtml(x.homeName)}${crest(x.home)}</span><b>${esc(Core.scoreText(x))}</b><span>${crest(x.away)}${nameHtml(x.awayName)}</span></span>${videos.matches[x.id] ? '<span class="mt-v">▶ відео</span>' : ''}</a>`;
+      };
+      // останні 8 зустрічей одразу, решта — під кнопкою
+      const rev = meets.slice().reverse();
+      out += `<div class="h2h-g"><div class="h2h-list">${rev.slice(0, 8).map(card).join('')}${rev.length > 8 ? `<details class="more"><summary>Ще ${rev.length - 8} ${plural(rev.length - 8, 'зустріч', 'зустрічі', 'зустрічей')}</summary><div class="h2h-list">${rev.slice(8).map(card).join('')}</div></details>` : ''}</div>
+        <div class="h2h-side">${rec('Найбільша перемога ' + nA, bA)}${rec('Найбільша перемога ' + nB, bB)}${rec('Найрезультативніша зустріч', most)}
+        ${top.length ? `<div class="pnl"><div class="pnl-h"><h3>Бомбардири очних зустрічей</h3></div><div class="pad">${top.map((r, i) => `<div class="rk ${r.side}"><span class="i">${i + 1}</span><span class="p">${playerLink(r.p)}</span><span class="b"><i style="width:${r.n / mxs * 100}%"></i></span><b>${popv(r.n, () => ({ title: r.p.name + ' · голи в очних зустрічах', items: groupByMatch(r.p.goals.filter(g => meets.includes(g.m) && !g.e.og), xs => goalsNote(xs.length)) }))}</b></div>`).join('')}<div class="rk-key"><span><i class="a"></i>${esc(nA)}</span><span><i class="b"></i>${esc(nB)}</span></div></div></div>` : ''}</div></div>`;
+    }
+    if (!out) return '';
+    return `<section class="block"><div class="sec-head"><h2 class="sec">Порівняння та очні зустрічі</h2><span class="note">${n} ${plural(n, 'очна зустріч', 'очні зустрічі', 'очних зустрічей')} за всю історію</span></div>${out}</section>`;
+  }
+
   /* ---------- повідомлення про неточність ---------- */
   const REPORT_TO = 'jia.ukraine@gmail.com';
   function openReport() {
@@ -687,7 +775,6 @@
     if (m.pens) sub.push(`Серія пенальті ${m.pens[0]}:${m.pens[1]}`);
     if (m.tech) sub.push(Array.isArray(m.tech) ? 'Технічна поразка' : 'Технічний результат');
     const meta = [fmtDate(m.date), m.venue ? 'Харків, ' + esc(m.venue) : '', m.att ? `${m.att} ${plural(m.att, 'глядач', 'глядачі', 'глядачів')}` : '', m.ref ? 'Суддя: ' + esc(m.ref) : ''].filter(Boolean);
-    const h2h = db.matches.filter(x => x !== m && ((x.home === m.home && x.away === m.away) || (x.home === m.away && x.away === m.home)));
     return `<div class="page">
       <div class="crumbs"><a href="#s-${m.season.id}">Сезон ${esc(m.season.label)}</a><span class="sep">/</span><a href="${tourHref(m.tour)}">${esc(m.tour.name)}</a>${m.div ? `<span class="sep">/</span><span>${esc(m.div)}</span>` : ''}${m.stage ? `<span class="sep">/</span><span>${esc(m.stage)}</span>` : ''}</div>
       <h1 class="sr-only">${esc(plainName(m.homeName))} — ${esc(plainName(m.awayName))} ${esc(Core.scoreText(m))}, ${fmtDate(m.date)}</h1>
@@ -707,7 +794,7 @@
       <section class="block"><h2 class="sec">Склади</h2><div class="lineups">${lineup('h')}${lineup('a')}</div>${m.mp.length ? `<p class="note">Незабиті пенальті: ${m.mp.map(x => `${playerLink(x.p, x.name)}${x.min != null ? ', ' + x.min + '′' : ''}${x.how ? ' (' + esc(HOW[x.how] || x.how) + ')' : ''}`).join('; ')}</p>` : ''}</section>
       ${stats}
       ${reportBtn()}
-      ${h2h.length ? `<section class="block"><div class="sec-head"><h2 class="sec">Інші зустрічі цих команд</h2><span class="note">${h2h.length}</span></div><div class="mlist">${h2h.slice().reverse().slice(0, 12).map(x => matchRow(x, { ctx: stageCtx(x) })).join('')}</div></section>` : ''}
+      ${h2hSection(m)}
     </div>`;
   }
 
