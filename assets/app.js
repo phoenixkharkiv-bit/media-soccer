@@ -63,6 +63,24 @@
     return esc(parts.join(' · ') + ' · ' + m.season.label);
   }
 
+  /* ---------- Google Analytics ---------- */
+  // сайт має одну сторінку з адресами після #, тому перегляди сторінок надсилаємо самі
+  const GA = window.GA_ID;
+  if (GA) {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', GA, { send_page_view: false });
+    const sc = document.createElement('script');
+    sc.async = true; sc.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA);
+    document.head.appendChild(sc);
+  }
+  const track = (name, params) => { if (GA && window.gtag) window.gtag('event', name, params || {}); };
+  function trackPage(h) {
+    const kind = !h ? 'головна' : h.split('-')[0];
+    track('page_view', { page_location: location.origin + location.pathname + (h ? '#' + h : ''), page_path: '/' + (h ? h.replace(/^([a-z]+)-/, '$1/') : ''), page_title: document.title, page_kind: kind });
+  }
+
   /* ---------- спливаючі списки матчів ---------- */
   // будь-яке число в статистиці може відкрити список матчів, з яких воно складається
   const pops = new Map();
@@ -88,6 +106,7 @@
     const items = r.items.slice().sort((a, b) => (a.m.date < b.m.date ? 1 : a.m.date > b.m.date ? -1 : 0));
     const n = items.length;
     const sub = (r.sub ? esc(r.sub) + ' · ' : '') + n + ' ' + plural(n, 'матч', 'матчі', 'матчів');
+    track('open_matches', { list: r.title });
     openModal(esc(r.title), sub, n ? `<div class="mlist">${items.map(x => matchRow(x.m, { ctx: stageCtx(x.m), note: x.note })).join('')}</div>` : '<p class="note">Немає матчів.</p>');
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && modalEl) closeModal(); });
@@ -366,6 +385,7 @@
   /* ---------- повідомлення про неточність ---------- */
   const REPORT_TO = 'jia.ukraine@gmail.com';
   function openReport() {
+    track('report_open', { page_title: document.title });
     const page = (document.querySelector('#app h1') || {}).textContent || 'Головна';
     const el = openModal('Повідомити про неточність', 'Лист піде на ' + REPORT_TO, `<form class="rform" id="rf" novalidate>
       <label>Сторінка<input id="rf-page" value="${esc(page.trim())}" readonly></label>
@@ -1604,6 +1624,7 @@
     runMounts();
     setNav(nav);
     document.title = titleFor(h);
+    trackPage(h);
     app.querySelectorAll('[data-href]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.href; }));
     if (h === 'teams') bindTeams();
     bindTabs();
