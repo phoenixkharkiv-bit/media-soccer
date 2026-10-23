@@ -65,7 +65,8 @@
 
   /* ---------- Google Analytics ---------- */
   // сайт має одну сторінку з адресами після #, тому перегляди сторінок надсилаємо самі
-  const GA = window.GA_ID;
+  // локальний перегляд (localhost) у статистику не потрапляє
+  const GA = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? '' : window.GA_ID;
   if (GA) {
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () { window.dataLayer.push(arguments); };
