@@ -383,6 +383,177 @@
     b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
 
+  /* ---------- матч: стрічка подій, символічні п'ятірки, статистика протистояння ---------- */
+  const IC_BALL = '<svg class="ic ic-ball" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" fill="#fff" stroke="currentColor" stroke-width="1.4"/><path d="M10 5.8l3.4 2.5-1.3 4h-4.2l-1.3-4z" fill="currentColor"/><path d="M10 5.8V1.6M13.4 8.3l3.9-1.3M12.1 12.3l2.4 3.4M7.9 12.3l-2.4 3.4M6.6 8.3L2.7 7" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>';
+  const icCard = k => `<span class="ic ic-card ${k}" aria-hidden="true"></span>`;
+  const FL = { pen: 'пенальті', free: 'штрафний', tenm: '10-метровий', og: 'автогол' };
+  function eventsBlock(m, side) {
+    const ev = [];
+    m.goals.forEach((g, i) => ev.push({ t: 'g', min: g.min, side: g.side, g, i }));
+    for (const k of ['yc', 'rc']) for (const c of m[k]) if (c.side) ev.push({ t: k, min: c.min, side: c.side, c, i: 1000 + ev.length });
+    if (!ev.length) return (m.score && m.score[0] + m.score[1] > 0 && !m.tech ? '<div class="callout">Автори голів у протоколі не вказані.</div>' : '') + (side ? `<section class="block"><div class="fives">${side}</div></section>` : '');
+    ev.sort((a, b) => (a.min == null ? 999 : a.min) - (b.min == null ? 999 : b.min) || a.i - b.i);
+    const run = [0, 0];
+    const timed = ev.every(e => e.min != null);
+    // шкала матчу: 2 × 25 хвилин
+    const pos = min => Math.min(100, Math.max(0, (min / 50) * 100));
+    const marks = ev.filter(e => e.min != null).map(e => `<span class="tl-m ${e.side} ${e.t}" style="left:${pos(e.min)}%" title="${e.min}′ ${esc(e.t === 'g' ? (e.g.og ? 'автогол: ' : 'гол: ') + e.g.name : (e.t === 'yc' ? 'попередження: ' : 'вилучення: ') + (e.c.p ? e.c.p.name : ''))}">${e.t === 'g' ? IC_BALL : icCard(e.t === 'yc' ? 'y' : 'r')}</span>`).join('');
+    const ht = m.goals.filter(g => g.min != null && g.min <= 25);
+    const htScore = timed && m.goals.length ? [ht.filter(g => g.side === 'h').length, ht.filter(g => g.side === 'a').length] : null;
+    let breakDone = false;
+    const rows = ev.map(e => {
+      let sep = '';
+      if (!breakDone && e.min != null && e.min > 25) { breakDone = true; sep = `<div class="ev-sep"><span>Перерва${htScore ? ' · ' + htScore[0] + ':' + htScore[1] : ''}</span></div>`; }
+      let who, icon, sc = '';
+      if (e.t === 'g') {
+        if (e.side === 'h') run[0]++; else if (e.side === 'a') run[1]++;
+        const fl = ['og', 'pen', 'tenm', 'free'].find(k => e.g[k]);
+        who = `${playerLink(e.g.p, e.g.name)}${fl ? `<span class="ev-tag ${fl}">${FL[fl]}</span>` : ''}`;
+        icon = IC_BALL; sc = `<b>${run[0]}:${run[1]}</b>`;
+      } else {
+        who = e.c.p ? playerLink(e.c.p, e.c.name) : esc(e.c.name || '');
+        icon = icCard(e.t === 'yc' ? 'y' : 'r');
+      }
+      const cell = `<span class="ev-w">${icon}<span>${who}</span></span>`;
+      return `${sep}<div class="ev ${e.t === 'g' ? 'goal' : 'card'}"><div class="ev-h">${e.side === 'h' ? cell : ''}</div><div class="ev-c">${sc}<small>${e.min != null ? e.min + '′' : ''}</small></div><div class="ev-a">${e.side === 'a' ? cell : ''}</div></div>`;
+    }).join('');
+    const nYc = s => m.yc.filter(c => c.side === s).length, nRc = s => m.rc.filter(c => c.side === s).length;
+    return `<section class="block"><div class="sec-head"><h2 class="sec">Хід матчу</h2>${htScore ? `<span class="note">1-й тайм ${htScore[0]}:${htScore[1]} · 2-й тайм ${m.goals.filter(g => g.side === 'h').length - htScore[0]}:${m.goals.filter(g => g.side === 'a').length - htScore[1]}</span>` : ''}</div>
+      <div class="tl"><div class="tl-teams"><span>${crest(m.home)}${nameHtml(m.homeName)}<small>${IC_BALL}${m.goals.filter(g => g.side === 'h').length}${nYc('h') ? ' ' + icCard('y') + nYc('h') : ''}${nRc('h') ? ' ' + icCard('r') + nRc('h') : ''}</small></span><span>${crest(m.away)}${nameHtml(m.awayName)}<small>${IC_BALL}${m.goals.filter(g => g.side === 'a').length}${nYc('a') ? ' ' + icCard('y') + nYc('a') : ''}${nRc('a') ? ' ' + icCard('r') + nRc('a') : ''}</small></span></div>
+        <div class="tl-track"><span class="tl-half"></span>${marks}</div><div class="tl-axis"><span>0′</span><span>25′</span><span>50′</span></div></div>
+      <div class="ev-grid${side ? '' : ' solo'}"><div class="evs">${rows}</div>${side || ''}</div>
+      ${m.goals.length && m.score && !m.tech && m.goals.length < m.score[0] + m.score[1] ? `<p class="note">У протоколі вказано не всі голи: ${m.goals.length} з ${m.score[0] + m.score[1]}.</p>` : ''}</section>`;
+  }
+
+  // символічна п'ятірка на схемі майданчика: воротар + 4 польові, позиції умовні
+  function fiveHtml(title, sub, gk, field, note) {
+    const spots = [['pv', 50, 17], ['al', 20, 40], ['ar', 80, 40], ['fx', 50, 61]];
+    const card = (x, cls, l, t) => `<div class="f5-p ${cls}" style="left:${l}%;top:${t}%">${x ? `<a href="#p-${x.p.id}" class="f5-dot" style="--c1:${x.c1};--c2:${x.c2}">${esc(x.badge)}</a><a href="#p-${x.p.id}" class="f5-n">${esc(x.p.name.split(' ')[0])}<small>${esc(x.p.name.split(' ').slice(1).join(' '))}</small></a><span class="f5-s">${x.line}</span>` : `<span class="f5-dot empty">?</span><span class="f5-n">Воротар<small>не підтверджений</small></span>`}</div>`;
+    return `<div class="f5"><div class="f5-h"><h3>${esc(title)}</h3>${sub ? `<span>${sub}</span>` : ''}</div>
+      <div class="f5-court"><svg viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><rect x="3" y="3" width="94" height="134" rx="2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".8"/><line x1="3" y1="70" x2="97" y2="70" stroke="rgba(255,255,255,.55)" stroke-width=".8"/><circle cx="50" cy="70" r="11" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".8"/><path d="M28 137 A22 22 0 0 1 72 137" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".8"/><path d="M28 3 A22 22 0 0 0 72 3" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".8"/><rect x="42" y="137" width="16" height="2.4" fill="rgba(255,255,255,.7)"/><rect x="42" y=".6" width="16" height="2.4" fill="rgba(255,255,255,.7)"/></svg>
+        ${spots.map(([cls, l, t], i) => card(field[i], cls, l, t)).join('')}${card(gk, 'gk', 50, 84)}</div>
+      ${note ? `<p class="note">${note}</p>` : ''}</div>`;
+  }
+  const f5Colors = (p, team) => { const [c1, c2] = team ? crestColors(team) : ['#4a5a78', '#1f2a40']; return { c1, c2 }; };
+  // п'ятірка матчу: з тих, хто грав; воротар — з підтвердженого списку
+  function matchFive(m) {
+    const fl = Stats.flow(m), w = Core.winnerSide(m);
+    const present = new Map();
+    for (const s of ['h', 'a']) for (const x of m.lineups[s]) present.set(x.p, s);
+    for (const g of m.goals) if (!g.og && g.p && !present.has(g.p)) present.set(g.p, g.side);
+    if (present.size < 5) return '';
+    const sc = Core.tableScore(m);
+    const rows = [...present].map(([p, s]) => {
+      const gl = m.goals.filter(g => g.p === p && !g.og).length;
+      const win = fl && fl.winner && fl.winner.p === p && !fl.winner.og;
+      const y = m.yc.filter(c => c.p === p).length, r = m.rc.filter(c => c.p === p).length;
+      const res = w === s ? 1 : w === 'd' ? 0.4 : 0;
+      return { p, s, gl, win, y, r, res, pts: gl * 3 + (win ? 2 : 0) + res - y * 0.5 - r * 2 };
+    });
+    const team = s => (s === 'h' ? m.home : m.away);
+    const keepers = rows.filter(x => x.p.gk);
+    // воротар переможців; за нічиєї — той, хто пропустив менше
+    const conceded = s => (sc ? (s === 'h' ? sc.ga : sc.gh) : 0);
+    const gkRow = keepers.sort((a, b) => b.res - a.res || conceded(a.s) - conceded(b.s))[0];
+    const field = rows.filter(x => x !== gkRow && !x.p.gk).sort((a, b) => b.pts - a.pts || b.gl - a.gl).slice(0, 4);
+    const mk = x => ({ p: x.p, ...f5Colors(x.p, team(x.s)), badge: x.gl ? String(x.gl) : '•', line: [x.gl ? goalsNote(x.gl) : '', x.win ? 'переможний' : '', x.y ? icCard('y') : '', x.r ? icCard('r') : ''].filter(Boolean).join(' · ') || plainName(x.s === 'h' ? m.homeName : m.awayName) });
+    const gk = gkRow ? { p: gkRow.p, ...f5Colors(gkRow.p, team(gkRow.s)), badge: 'В', line: 'пропущено ' + conceded(gkRow.s) } : null;
+    return fiveHtml('Символічна п’ятірка матчу', 'з тих, хто грав', gk, field.map(mk), 'Польові — за голами, переможним голом і результатом команди, мінус картки. Позиції умовні: амплуа в протоколах не вказані.' + (gkRow ? '' : ' Воротаря покажемо, щойно список воротарів буде підтверджено.'));
+  }
+  // п'ятірка противостояння за весь час
+  function h2hFive(meets, A, B) {
+    const st = new Map();
+    for (const x of meets) {
+      const sc = Core.tableScore(x); if (!sc) continue;
+      const w = Core.winnerSide(x);
+      const present = new Map();
+      for (const s of ['h', 'a']) for (const l of x.lineups[s]) present.set(l.p, s);
+      for (const [p, s] of present) {
+        const r = st.get(p) || { p, n: 0, gl: 0, w: 0, ga: 0, team: s === 'h' ? x.home : x.away };
+        r.n++; if (w === s) r.w++; r.ga += s === 'h' ? sc.ga : sc.gh; st.set(p, r);
+      }
+      for (const g of x.goals) if (!g.og && g.p && st.has(g.p)) st.get(g.p).gl++;
+    }
+    const all = [...st.values()];
+    const field = all.filter(r => !r.p.gk && (r.gl || r.n)).sort((a, b) => b.gl - a.gl || b.n - a.n || b.w - a.w).slice(0, 4);
+    const ks = all.filter(r => r.p.gk);
+    const minN = ks.some(r => r.n >= 3) ? 3 : 1;
+    const gkR = ks.filter(r => r.n >= minN).sort((a, b) => b.w / b.n - a.w / a.n || a.ga / a.n - b.ga / b.n)[0];
+    if (field.length < 4) return '';
+    const mk = r => ({ p: r.p, ...f5Colors(r.p, r.team), badge: String(r.gl), line: goalsNote(r.gl) + ' у ' + r.n + ' ' + plural(r.n, 'матчі', 'матчах', 'матчах') });
+    const gk = gkR ? { p: gkR.p, ...f5Colors(gkR.p, gkR.team), badge: 'В', line: gkR.w + ' ' + plural(gkR.w, 'перемога', 'перемоги', 'перемог') + ' у ' + gkR.n + ', пропускав ' + dec(gkR.ga / gkR.n, 1) } : null;
+    return fiveHtml('Символічна п’ятірка противостояння', 'найкращі за всі очні зустрічі', gk, field.map(mk), 'Польові — найкращі бомбардири очних зустрічей. Воротар — найкращий відсоток перемог серед підтверджених воротарів' + (minN > 1 ? ' (від 3 матчів)' : '') + '.');
+  }
+
+  // розширена статистика противостояння
+  function h2hExtra(meets, A, B, nA, nB, persp, five) {
+    const played = meets.filter(x => Core.tableScore(x));
+    if (played.length < 2) return '';
+    const real = played.filter(x => !x.tech);
+    const sideOf = (x, S) => (S.has(x.home) ? 'h' : 'a');
+    const cards = [];
+    // 1. хронологія результатів
+    cards.push(`<div class="hx wide"><h3>Хронологія результатів</h3><div class="hx-strip">${played.map(x => { const p = persp(x, A); return `<a class="hs ${p.res}" href="#m-${x.id}" title="${esc(fmtDate(x.date) + ' · ' + x.tour.name + ' · ' + plainName(x.homeName) + ' ' + Core.scoreText(x) + ' ' + plainName(x.awayName))}"><b>${p.tech ? 'тех' : p.f + ':' + p.a}</b><small>${x.date.slice(2, 4)}</small></a>`; }).join('')}</div><p class="note">З погляду ${esc(nA)}: зелений — перемога, сірий — нічия, червоний — поразка. Під рахунком — рік.</p></div>`);
+    if (five) cards.push(`<div class="hx hx-five">${five}</div>`);
+    // 2. за турнірами
+    const byT = new Map();
+    for (const x of played) { const k = x.tour.name; const r = byT.get(k) || { n: 0, w: 0, d: 0, l: 0, f: 0, a: 0, list: [] }; const p = persp(x, A); r.n++; r[p.res === 'W' ? 'w' : p.res === 'D' ? 'd' : 'l']++; if (!p.tech) { r.f += p.f; r.a += p.a; } r.list.push(x); byT.set(k, r); }
+    cards.push(`<div class="hx"><h3>За турнірами</h3><table class="hx-t"><thead><tr><th>Турнір</th><th class="n">І</th><th class="n">В–Н–П</th><th class="n">М’ячі</th></tr></thead><tbody>${[...byT].sort((a, b) => b[1].n - a[1].n).map(([k, r]) => `<tr><td>${esc(k)}</td><td class="n">${popv(r.n, () => ({ title: nA + ' — ' + nB + ' · ' + k, items: r.list.map(m => ({ m })) }))}</td><td class="n">${r.w}–${r.d}–${r.l}</td><td class="n">${r.f}:${r.a}</td></tr>`).join('')}</tbody></table></div>`);
+    // 3. серії
+    const streak = (test) => { let cur = [], best = []; for (const x of played) { if (test(persp(x, A))) { cur.push(x); if (cur.length > best.length) best = cur.slice(); } else cur = []; } return best; };
+    const sW = streak(p => p.res === 'W'), sL = streak(p => p.res === 'L'), sUA = streak(p => p.res !== 'L'), sUB = streak(p => p.res !== 'W');
+    const last = persp(played[played.length - 1], A).res;
+    let curN = 0; for (let i = played.length - 1; i >= 0 && persp(played[i], A).res === last; i--) curN++;
+    const sp = (list, t) => (list.length ? popv(list.length, () => ({ title: t, sub: fmtDate(list[0].date) + ' — ' + fmtDate(list[list.length - 1].date), items: list.map(m => ({ m })) })) : '0');
+    cards.push(`<div class="hx"><h3>Серії</h3><dl class="hx-d"><dt>Перемоги поспіль ${esc(nA)}</dt><dd>${sp(sW, 'Серія перемог ' + nA)}</dd><dt>Перемоги поспіль ${esc(nB)}</dt><dd>${sp(sL, 'Серія перемог ' + nB)}</dd><dt>Без поразок ${esc(nA)}</dt><dd>${sp(sUA, 'Без поразок ' + nA)}</dd><dt>Без поразок ${esc(nB)}</dt><dd>${sp(sUB, 'Без поразок ' + nB)}</dd><dt>Поточна серія</dt><dd>${curN} ${last === 'D' ? plural(curN, 'нічия', 'нічиї', 'нічиїх') : plural(curN, 'перемога', 'перемоги', 'перемог') + ' ' + esc(last === 'W' ? nA : nB)}</dd></dl></div>`);
+    // 4. перший гол
+    let fA = 0, fB = 0, fAw = 0, fBw = 0;
+    for (const x of real) { const fl = Stats.flow(x); if (!fl || !fl.first) continue; const s = sideOf(x, A); const w = Core.winnerSide(x); if (fl.first === s) { fA++; if (w === s) fAw++; } else { fB++; if (w && w !== 'd' && w !== s) fBw++; } }
+    if (fA + fB) cards.push(`<div class="hx"><h3>Хто забиває першим</h3><div class="hx-split"><div><b class="a">${fA}</b><span>${esc(nA)}</span><small>і виграв ${fAw}</small></div><div><b class="b">${fB}</b><span>${esc(nB)}</span><small>і виграв ${fBw}</small></div></div><div class="hx-bar"><i class="a" style="width:${(fA / (fA + fB)) * 100}%"></i><i class="b" style="width:${(fB / (fA + fB)) * 100}%"></i></div></div>`);
+    // 5. тайми та хвилини
+    const gl = { A1: 0, A2: 0, B1: 0, B2: 0 };
+    const bins = Array.from({ length: 10 }, () => [0, 0]), binList = Array.from({ length: 10 }, () => []);
+    for (const x of real) for (const g of x.goals) {
+      if (g.min == null || (g.side !== 'h' && g.side !== 'a')) continue;
+      const isA = A.has(g.side === 'h' ? x.home : x.away);
+      gl[(isA ? 'A' : 'B') + (g.min <= 25 ? 1 : 2)]++;
+      const b = Stats.binOf(g.min); if (b >= 0 && b < 10) { bins[b][isA ? 0 : 1]++; binList[b].push({ m: x, g, isA }); }
+    }
+    if (gl.A1 + gl.A2 + gl.B1 + gl.B2) cards.push(`<div class="hx wide"><h3>Коли забивають в очних зустрічах</h3><div class="hx-halves"><span>1-й тайм: <b class="a">${gl.A1}</b> : <b class="b">${gl.B1}</b></span><span>2-й тайм: <b class="a">${gl.A2}</b> : <b class="b">${gl.B2}</b></span></div>${colsHtml(bins.map((v, b) => ({ label: Stats.BINS[b], values: v, pop: () => ({ title: 'Голи на ' + Stats.BINS[b] + ' хвилинах', items: [...groupMap(binList[b])].map(([m, xs]) => ({ m, note: xs.map(z => z.g.min + '′ ' + z.g.name).join(', ') })) }) })), ['var(--accent)', 'var(--lg-media)'], 170)}<div class="ring-key"><span><i style="background:var(--accent)"></i>${esc(nA)}</span><span><i style="background:var(--lg-media)"></i>${esc(nB)}</span></div></div>`);
+    // 6. характер матчів
+    const tot = real.map(x => x.score[0] + x.score[1]);
+    const btts = real.filter(x => x.score[0] > 0 && x.score[1] > 0).length, oneGoal = real.filter(x => Math.abs(x.score[0] - x.score[1]) === 1).length, ten = real.filter(x => x.score[0] + x.score[1] >= 10).length;
+    const pctS = n => (real.length ? Math.round((n / real.length) * 100) + '%' : '—');
+    if (real.length) cards.push(`<div class="hx"><h3>Характер матчів</h3><dl class="hx-d"><dt>Голів за матч</dt><dd>${dec(tot.reduce((a, b) => a + b, 0) / real.length, 1)}</dd><dt>Забивали обидві команди</dt><dd>${pctS(btts)}</dd><dt>Різниця в один гол</dt><dd>${popv(pctS(oneGoal), oneGoal ? () => ({ title: 'Очні зустрічі з різницею в один гол', items: real.filter(x => Math.abs(x.score[0] - x.score[1]) === 1).map(m => ({ m })) }) : null)}</dd><dt>10 і більше голів</dt><dd>${popv(pctS(ten), ten ? () => ({ title: 'Очні зустрічі з 10+ голами', items: real.filter(x => x.score[0] + x.score[1] >= 10).map(m => ({ m })) }) : null)}</dd><dt>Технічні результати</dt><dd>${played.length - real.length}</dd></dl></div>`);
+    // 7. статистика ударів з протоколів
+    const ms = real.filter(x => x.stats);
+    if (ms.length) {
+      const sum = (k, isA) => ms.reduce((s, x) => { const v = x.stats[k]; if (!v) return s; const sa = sideOf(x, A) === 'h' ? 0 : 1; return s + v[isA ? sa : 1 - sa]; }, 0);
+      const L = [['Удари', 'shots'], ['Удари в створ', 'on_target'], ['Штанги й поперечини', 'woodwork'], ['Кутові', 'corners'], ['Фоли', 'fouls']].filter(([, k]) => ms.some(x => x.stats[k]));
+      cards.push(`<div class="hx"><h3>Статистика за протоколами</h3><p class="note">Середнє за матч, ${ms.length} ${plural(ms.length, 'матч', 'матчі', 'матчів')} з даними</p>${L.map(([lab, k]) => { const a = sum(k, true) / ms.length, b = sum(k, false) / ms.length, mx = Math.max(a, b) || 1; return `<div class="hx-m"><b>${dec(a, 1)}</b><span class="cm-b l"><i style="width:${(a / mx) * 100}%"></i></span><span class="cm-l">${lab}</span><span class="cm-b r"><i style="width:${(b / mx) * 100}%"></i></span><b class="r">${dec(b, 1)}</b></div>`; }).join('')}</div>`);
+    }
+    // 8. гравці: найбільше очних матчів, хет-трики, картки
+    const apps = new Map(), hats = [], crd = new Map();
+    for (const x of played) {
+      for (const s of ['h', 'a']) for (const l of x.lineups[s]) { const r = apps.get(l.p) || { p: l.p, n: 0, isA: A.has(s === 'h' ? x.home : x.away), list: [] }; r.n++; r.list.push(x); apps.set(l.p, r); }
+      const per = new Map(); for (const g of x.goals) if (!g.og && g.p) per.set(g.p, (per.get(g.p) || 0) + 1);
+      for (const [p, n] of per) if (n >= 3) hats.push({ p, n, x });
+      for (const k of ['yc', 'rc']) for (const c of x[k]) if (c.p) { const r = crd.get(c.p) || { p: c.p, y: 0, r: 0, list: [] }; r[k === 'yc' ? 'y' : 'r']++; r.list.push({ m: x, note: (k === 'yc' ? 'попередження' : 'вилучення') + (c.min != null ? ', ' + c.min + '′' : '') }); crd.set(c.p, r); }
+    }
+    const topApps = [...apps.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+    cards.push(`<div class="hx"><h3>Найбільше очних матчів</h3>${topApps.map((r, i) => `<div class="rk ${r.isA ? 'a' : 'b'}"><span class="i">${i + 1}</span><span class="p">${playerLink(r.p)}</span><span class="b"><i style="width:${(r.n / topApps[0].n) * 100}%"></i></span><b>${popv(r.n, () => ({ title: r.p.name + ' · очні матчі', items: r.list.map(m => ({ m })) }))}</b></div>`).join('')}</div>`);
+    const hatRow = h => `<a class="hx-h" href="#m-${h.x.id}"><b>${h.n}</b><span>${esc(h.p.name)}<small>${shortDate(h.x.date)} · ${nameHtml(h.x.homeName)} ${esc(Core.scoreText(h.x))} ${nameHtml(h.x.awayName)}</small></span></a>`;
+    hats.sort((a, b) => b.n - a.n || (a.x.date < b.x.date ? 1 : -1));
+    if (hats.length) cards.push(`<div class="hx"><h3>Хет-трики в очних зустрічах <span class="note">${hats.length}</span></h3>${hats.slice(0, 8).map(hatRow).join('')}${hats.length > 8 ? `<details class="more"><summary>Ще ${hats.length - 8}</summary>${hats.slice(8).map(hatRow).join('')}</details>` : ''}</div>`);
+    const yA = played.reduce((s, x) => s + x.yc.filter(c => c.side && A.has(c.side === 'h' ? x.home : x.away)).length, 0), yB = played.reduce((s, x) => s + x.yc.filter(c => c.side && B.has(c.side === 'h' ? x.home : x.away)).length, 0);
+    const rA = played.reduce((s, x) => s + x.rc.filter(c => c.side && A.has(c.side === 'h' ? x.home : x.away)).length, 0), rB = played.reduce((s, x) => s + x.rc.filter(c => c.side && B.has(c.side === 'h' ? x.home : x.away)).length, 0);
+    if (yA + yB + rA + rB) {
+      const topC = [...crd.values()].sort((a, b) => (b.r * 5 + b.y) - (a.r * 5 + a.y)).slice(0, 5);
+      cards.push(`<div class="hx"><h3>Дисципліна</h3><div class="hx-split"><div><b class="a">${icCard('y')} ${yA} ${icCard('r')} ${rA}</b><span>${esc(nA)}</span></div><div><b class="b">${icCard('y')} ${yB} ${icCard('r')} ${rB}</b><span>${esc(nB)}</span></div></div>${topC.map(r => `<div class="hx-c"><span>${playerLink(r.p)}</span><b>${popv(`${r.y ? icCard('y') + r.y : ''}${r.r ? ' ' + icCard('r') + r.r : ''}`, () => ({ title: r.p.name + ' · картки в очних зустрічах', items: r.list }))}</b></div>`).join('')}</div>`);
+    }
+    return `<h3 class="sub hx-title">Статистика протистояння</h3><div class="hxg">${cards.join('')}</div>`;
+  }
+
   /* ---------- матч: порівняння команд і очні зустрічі ---------- */
   function h2hSection(m) {
     // клуб із кількома складами — усі його склади; матч складів одного клубу — лише ці два склади
@@ -467,6 +638,7 @@
         <div class="h2h-side">${rec('Найбільша перемога ' + nA, bA)}${rec('Найбільша перемога ' + nB, bB)}${rec('Найрезультативніша зустріч', most)}
         ${top.length ? `<div class="pnl"><div class="pnl-h"><h3>Бомбардири очних зустрічей</h3></div><div class="pad">${top.map((r, i) => `<div class="rk ${r.side}"><span class="i">${i + 1}</span><span class="p">${playerLink(r.p)}</span><span class="b"><i style="width:${r.n / mxs * 100}%"></i></span><b>${popv(r.n, () => ({ title: r.p.name + ' · голи в очних зустрічах', items: groupByMatch(r.p.goals.filter(g => meets.includes(g.m) && !g.e.og), xs => goalsNote(xs.length)) }))}</b></div>`).join('')}<div class="rk-key"><span><i class="a"></i>${esc(nA)}</span><span><i class="b"></i>${esc(nB)}</span></div></div></div>` : ''}</div></div>`;
     }
+    if (meets.length > 1) out += h2hExtra(meets, A, B, nA, nB, persp, h2hFive(meets, A, B));
     if (!out) return '';
     return `<section class="block"><div class="sec-head"><h2 class="sec">Порівняння та очні зустрічі</h2><span class="note">${n} ${plural(n, 'очна зустріч', 'очні зустрічі', 'очних зустрічей')} за всю історію</span></div>${out}</section>`;
   }
@@ -752,13 +924,6 @@
     const m = db.matches.find(x => x.id === id);
     if (!m) return notFound();
     const sideName = s => s === 'h' ? m.homeName : m.awayName;
-    let run = [0, 0];
-    const goals = m.goals.map(g => {
-      if (g.side === 'h') run[0]++; else if (g.side === 'a') run[1]++;
-      const tag = g.og ? '<span class="tag">автогол</span>' : g.pen ? '<span class="tag">пенальті</span>' : g.free ? '<span class="tag">штрафний</span>' : '';
-      const who = `${playerLink(g.p, g.name)}${tag}`;
-      return `<div class="goal"><div class="gh">${g.side === 'h' ? who : ''}</div><div class="gm"><b>${run[0]}:${run[1]}</b>${g.min != null ? g.min + '′' : ''}</div><div>${g.side === 'a' ? who : ''}</div></div>`;
-    }).join('');
     const marks = (p, side) => {
       const gs = m.goals.filter(g => g.p === p && !g.og).length;
       const y = m.yc.filter(c => c.p === p).length, r = m.rc.filter(c => c.p === p).length;
@@ -788,8 +953,7 @@
         <div class="board-meta">${meta.map(x => `<span>${x}</span>`).join('')}</div>
       </section>
       ${videoBlock(m)}
-      ${m.goals.length && m.score && !m.tech && m.goals.length < m.score[0] + m.score[1] ? `<div class="callout">У протоколі вказано не всі голи: ${m.goals.length} з ${m.score[0] + m.score[1]}.</div>` : ''}
-      ${m.goals.length ? `<section class="block"><h2 class="sec">Голи</h2><div class="goals">${goals}</div></section>` : (m.score && m.score[0] + m.score[1] > 0 && !m.tech ? '<div class="callout">Автори голів у протоколі не вказані.</div>' : '')}
+      ${(() => { const f = matchFive(m); const e = eventsBlock(m, f); return e || (f ? `<section class="block"><div class="fives">${f}</div></section>` : ''); })()}
       ${m.shootout ? `<section class="block"><h2 class="sec">Післяматчеві пенальті</h2><div class="callout">${m.shootout.map(esc).join(' · ')}</div></section>` : ''}
       <section class="block"><h2 class="sec">Склади</h2><div class="lineups">${lineup('h')}${lineup('a')}</div>${m.mp.length ? `<p class="note">Незабиті пенальті: ${m.mp.map(x => `${playerLink(x.p, x.name)}${x.min != null ? ', ' + x.min + '′' : ''}${x.how ? ' (' + esc(HOW[x.how] || x.how) + ')' : ''}`).join('; ')}</p>` : ''}</section>
       ${stats}
@@ -1743,11 +1907,14 @@
   /* ---------- загрузка ---------- */
   async function load() {
     const get = u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ': ' + r.status); return r.json(); });
-    const [idx, teams, players, rindex, vids] = await Promise.all([get('data/seasons.json'), get('data/teams.json'), get('data/players.json'), get('data/reviews/index.json').catch(() => ({})), get('data/videos.json').catch(() => ({ matches: {} }))]);
+    const [idx, teams, players, rindex, vids, gks] = await Promise.all([get('data/seasons.json'), get('data/teams.json'), get('data/players.json'), get('data/reviews/index.json').catch(() => ({})), get('data/videos.json').catch(() => ({ matches: {} })), get('data/goalkeepers.json').catch(() => ({ goalkeepers: [] }))]);
     reviewIndex = UK.reviewIndex(rindex);
     const seasons = (await Promise.all(idx.seasons.map(id => get(`data/seasons/${id}.json`)))).map(UK.season);
     db = Core.build({ seasons, teams: UK.teams(teams), players: UK.players(players) });
     recs = Core.records(db);
+    // воротарі: амплуа в протоколах немає, список підтверджує адміністратор (data/goalkeepers.json)
+    const gkSet = new Set((gks.goalkeepers || []).map(n => Core.normName(UK.person(n))));
+    for (const p of db.players.values()) if ([...p.spellings.keys()].some(n => gkSet.has(Core.normName(n)))) p.gk = true;
     videos = vids;
     renderStrip();
     initSearch();
