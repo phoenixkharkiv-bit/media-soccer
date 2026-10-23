@@ -65,17 +65,8 @@
 
   /* ---------- Google Analytics ---------- */
   // сайт має одну сторінку з адресами після #, тому перегляди сторінок надсилаємо самі
-  // локальний перегляд (localhost) у статистику не потрапляє
+  // код Google стоїть у index.html; локальний перегляд (localhost) у статистику не потрапляє
   const GA = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? '' : window.GA_ID;
-  if (GA) {
-    window.dataLayer = window.dataLayer || [];
-    window.gtag = function () { window.dataLayer.push(arguments); };
-    window.gtag('js', new Date());
-    window.gtag('config', GA, { send_page_view: false });
-    const sc = document.createElement('script');
-    sc.async = true; sc.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA);
-    document.head.appendChild(sc);
-  }
   const track = (name, params) => { if (GA && window.gtag) window.gtag('event', name, params || {}); };
   function trackPage(h) {
     const kind = !h ? 'головна' : h.split('-')[0];
