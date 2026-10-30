@@ -1046,12 +1046,12 @@
     function render() {
       const q = Core.normName(f.value);
       let list = q ? all.filter(p => [...p.spellings.keys()].some(n => Core.normName(n).includes(q))) : all.slice();
-      const key = { goals: p => -p.goals.length * 1000 - p.archiveGoals, apps: p => -p.apps.length, seasons: p => -p.seasonsPlayed.size * 1000 - p.apps.length };
+      const key = { goals: p => -(p.goals.length + p.archiveGoals) * 1000 - p.goals.length, apps: p => -p.apps.length, seasons: p => -p.seasonsPlayed.size * 1000 - p.apps.length };
       if (playersState.sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
       else list.sort((a, b) => key[playersState.sort](a) - key[playersState.sort](b) || a.name.localeCompare(b.name, 'ru'));
       const shown = list.slice(0, playersState.shown);
-      box.innerHTML = `<div class="tw"><table><thead><tr><th>Гравець</th><th class="hide-s">Команди</th><th class="n">Сезони</th><th class="n">Матчі</th><th class="n">Голи</th></tr></thead><tbody>${shown.map(p => `<tr><td>${playerLink(p)}</td><td class="hide-s muted">${mainTeams(p) || (p.archive[0] ? teamLink(p.archive[0].team, p.archive[0].teamName) : '')}</td><td class="n">${p.seasonsPlayed.size}</td><td class="n">${p.apps.length || ''}</td><td class="n pts">${p.goals.length || ''}${p.archiveGoals ? `<span class="note"> +${p.archiveGoals}*</span>` : ''}</td></tr>`).join('')}</tbody></table></div>
-        <div class="toolbar"><span class="note">Показано ${shown.length} з ${list.length}. * Голи ранніх сезонів за списками бомбардирів.</span>${list.length > shown.length ? '<button class="btn" id="more">Показати ще</button>' : ''}</div>`;
+      box.innerHTML = `<div class="tw"><table><thead><tr><th>Гравець</th><th class="hide-s">Команди</th><th class="n">Сезони</th><th class="n">Матчі</th><th class="n">Голи</th></tr></thead><tbody>${shown.map(p => `<tr><td>${playerLink(p)}</td><td class="hide-s muted">${mainTeams(p) || (p.archive[0] ? teamLink(p.archive[0].team, p.archive[0].teamName) : '')}</td><td class="n">${p.seasonsPlayed.size}</td><td class="n">${p.apps.length || ''}</td><td class="n pts">${(p.goals.length + p.archiveGoals) || ''}${p.archiveGoals ? '<span class="note">*</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
+        <div class="toolbar"><span class="note">Показано ${shown.length} з ${list.length}. * Частину голів враховано за підсумковими списками бомбардирів: детальну інформацію про них ще не довантажено.</span>${list.length > shown.length ? '<button class="btn" id="more">Показати ще</button>' : ''}</div>`;
       const more = document.getElementById('more');
       if (more) more.addEventListener('click', () => { playersState.shown += 200; render(); });
     }
