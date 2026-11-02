@@ -469,6 +469,7 @@ h4.mini { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-sp
 .ptabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
 .ptabs button small { color: var(--muted); font-weight: 400; margin-left: 4px; }
 .tabpanel { display: grid; gap: 28px; }
+.tabpanel[hidden] { display: none; }
 .squads { display: flex; flex-wrap: wrap; gap: 6px; }
 .squad { font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .squad.on { border-color: var(--ink); font-weight: 600; }
@@ -858,3 +859,19 @@ details.more[open] > summary { margin-bottom: 8px; }
 .f5-court { aspect-ratio: 100 / 140; }
 .f5 { max-width: 420px; width: 100%; }
 .hx-five { grid-row: span 2; } .hx-five .f5 { max-width: none; }
+/* сітка «турнір × сезон» на сторінці клубу */
+.hg-sum { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--muted); }
+.hg-m { display: inline-flex; align-items: center; gap: 6px; }
+.hg-m b { color: var(--ink); font-size: 16px; }
+.hg-wrap { padding-bottom: 4px; }
+.hg { display: grid; gap: 4px 2px; align-items: center; width: max-content; }
+.hg-h { font: 500 11px/1 var(--f-mono); color: var(--muted); text-align: center; padding-bottom: 4px; }
+.hg-r { position: sticky; left: 0; z-index: 1; background: var(--surface); font-size: 13px; font-weight: 500; color: var(--ink); padding-right: 12px; white-space: nowrap; }
+.hg-x { position: relative; display: grid; place-items: center; height: 34px; border-radius: 6px; background: var(--line-soft, rgba(127,127,127,.06)); text-decoration: none; }
+a.hg-x:hover, a.hg-x:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.hg-x sup { position: absolute; top: 2px; right: 3px; font-size: 9px; color: var(--muted); }
+.hg-c { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font: 600 12px/1 var(--f-mono); font-style: normal; color: var(--muted); }
+.hg-c.g1 { background: var(--gold-soft); color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold); }
+.hg-c.g2 { background: var(--silver-soft); color: var(--silver); box-shadow: inset 0 0 0 2px var(--silver); }
+.hg-c.g3 { background: var(--bronze-soft); color: var(--bronze); box-shadow: inset 0 0 0 2px var(--bronze); }
+.hg-c.hg-dot { width: 8px; height: 8px; background: var(--muted); opacity: .45; }
