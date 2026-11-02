@@ -1,0 +1,1465 @@
+{
+ "file": "hope_2010.eff",
+ "notes": [],
+ "counts": {
+  "matches": 6,
+  "goals": 59,
+  "missed_pens": 1,
+  "shootout_kicks": 0
+ },
+ "matches": [
+  {
+   "n": 0,
+   "date": "2010-02-27",
+   "round": 1,
+   "stage": null,
+   "home": "ГолStar",
+   "away": "АЖИ",
+   "score": [
+    5,
+    1
+   ],
+   "shootout": false,
+   "technical": false,
+   "referee": "Балакирев Михаил",
+   "attendance": 25,
+   "city": "Харьков",
+   "venue": "СК Фармуниверситета",
+   "stats": {
+    "corners": [
+     6,
+     5
+    ],
+    "fouls": [
+     8,
+     8
+    ],
+    "shots": [
+     41,
+     28
+    ],
+    "on_target": [
+     38,
+     23
+    ],
+    "woodwork": [
+     3,
+     0
+    ]
+   },
+   "lineups": {
+    "home": [
+     {
+      "player": "Брусенцов Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Проуторов Михаил",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Левонюк Евгений",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Гурджян Баграт",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Маслак Валентин",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Акимов Вадим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Яковлев Дмитрий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Козаков Евгений",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Яковенко Андрей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ],
+    "away": [
+     {
+      "player": "Логачёв Сергей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Солдатенко Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Солдатенко Алексей (мл)",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Худов Геннадий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Никулин Андрей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ]
+   },
+   "goals": [
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Акимов Вадим",
+     "assist": null,
+     "minute": 14,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "away",
+     "player": "Солдатенко Алексей",
+     "assist": null,
+     "minute": 21,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Яковенко Андрей",
+     "assist": null,
+     "minute": 32,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Яковлев Дмитрий",
+     "assist": null,
+     "minute": 40,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Гурджян Баграт",
+     "assist": null,
+     "minute": 47,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Козаков Евгений",
+     "assist": null,
+     "minute": 49,
+     "kind": "penalty"
+    }
+   ],
+   "missed_pens": [
+    {
+     "player": "Солдатенко Алексей",
+     "team": "АЖИ",
+     "minute": 46,
+     "outcome": "вратарь"
+    }
+   ],
+   "shootout_kicks": []
+  },
+  {
+   "n": 1,
+   "date": "2010-02-27",
+   "round": 1,
+   "stage": null,
+   "home": "Слобода",
+   "away": "Наша команда",
+   "score": [
+    2,
+    5
+   ],
+   "shootout": false,
+   "technical": false,
+   "referee": "Сагаян Павел",
+   "attendance": 21,
+   "city": "Харьков",
+   "venue": "СК Фармуниверситета",
+   "stats": {
+    "corners": [
+     12,
+     5
+    ],
+    "fouls": [
+     4,
+     5
+    ],
+    "shots": [
+     31,
+     20
+    ],
+    "on_target": [
+     22,
+     12
+    ],
+    "woodwork": [
+     1,
+     1
+    ]
+   },
+   "lineups": {
+    "home": [
+     {
+      "player": "Королюк Олег",
+      "minutes": 40,
+      "yellow": false,
+      "yellow_min": null,
+      "red": true,
+      "replaced_by": null
+     },
+     {
+      "player": "Нещерет Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Масалов Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Усов Вадим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Вовк Виталий",
+      "minutes": 50,
+      "yellow": true,
+      "yellow_min": 9,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Королюк Евгений",
+      "minutes": 50,
+      "yellow": true,
+      "yellow_min": 39,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Владимиров Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ],
+    "away": [
+     {
+      "player": "Кучерявый Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Кучугура Андрей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Коржун Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Козодой Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Мартыненко Максим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Степаненко Михаил",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ]
+   },
+   "goals": [
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Мартыненко Максим",
+     "assist": null,
+     "minute": 1,
+     "kind": "penalty"
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Козодой Александр",
+     "assist": null,
+     "minute": 13,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "home",
+     "player": "Вовк Виталий",
+     "assist": null,
+     "minute": 21,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Коржун Алексей",
+     "assist": null,
+     "minute": 41,
+     "kind": "shtrafnoy"
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Кучугура Андрей",
+     "assist": null,
+     "minute": 45,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "home",
+     "player": "Владимиров Александр",
+     "assist": null,
+     "minute": 47,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Кучугура Андрей",
+     "assist": null,
+     "minute": 48,
+     "kind": null
+    }
+   ],
+   "missed_pens": [],
+   "shootout_kicks": []
+  },
+  {
+   "n": 2,
+   "date": "2010-03-13",
+   "round": 2,
+   "stage": null,
+   "home": "Наша команда",
+   "away": "ГолStar",
+   "score": [
+    2,
+    11
+   ],
+   "shootout": false,
+   "technical": false,
+   "referee": "Сагаян Павел",
+   "attendance": 10,
+   "city": "Харьков",
+   "venue": "СК Фармуниверситета",
+   "stats": {
+    "corners": [
+     6,
+     7
+    ],
+    "fouls": [
+     2,
+     1
+    ],
+    "shots": [
+     17,
+     28
+    ],
+    "on_target": [
+     12,
+     19
+    ],
+    "woodwork": [
+     2,
+     1
+    ]
+   },
+   "lineups": {
+    "home": [
+     {
+      "player": "Шевченко Дмитрий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Мартыненко Максим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Коваленко Павел",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Коржун Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Степаненко Михаил",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ],
+    "away": [
+     {
+      "player": "Гурджян Баграт",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Маслак Валентин",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Проуторов Михаил",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Левонюк Евгений",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Акимов Вадим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Яковлев Дмитрий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Козаков Евгений",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Яковенко Андрей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Киенко Вячеслав",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Худов Владислав",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ]
+   },
+   "goals": [
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Акимов Вадим",
+     "assist": null,
+     "minute": 1,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Яковлев Дмитрий",
+     "assist": null,
+     "minute": 14,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Яковенко Андрей",
+     "assist": null,
+     "minute": 15,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Козаков Евгений",
+     "assist": null,
+     "minute": 20,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Козаков Евгений",
+     "assist": null,
+     "minute": 22,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "home",
+     "player": "Коржун Алексей",
+     "assist": null,
+     "minute": 32,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Козаков Евгений",
+     "assist": null,
+     "minute": 34,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Яковенко Андрей",
+     "assist": null,
+     "minute": 38,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "home",
+     "player": "Коржун Алексей",
+     "assist": null,
+     "minute": 39,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Худов Владислав",
+     "assist": null,
+     "minute": 40,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Яковенко Андрей",
+     "assist": null,
+     "minute": 45,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Акимов Вадим",
+     "assist": null,
+     "minute": 46,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "away",
+     "player": "Левонюк Евгений",
+     "assist": null,
+     "minute": 50,
+     "kind": null
+    }
+   ],
+   "missed_pens": [],
+   "shootout_kicks": []
+  },
+  {
+   "n": 3,
+   "date": "2010-03-13",
+   "round": 2,
+   "stage": null,
+   "home": "АЖИ",
+   "away": "Слобода",
+   "score": [
+    4,
+    10
+   ],
+   "shootout": false,
+   "technical": false,
+   "referee": "Сагаян Павел",
+   "attendance": 32,
+   "city": "Харьков",
+   "venue": "СК Фармуниверситета",
+   "stats": {
+    "corners": [
+     2,
+     4
+    ],
+    "fouls": [
+     1,
+     2
+    ],
+    "shots": [
+     25,
+     36
+    ],
+    "on_target": [
+     16,
+     26
+    ],
+    "woodwork": [
+     4,
+     5
+    ]
+   },
+   "lineups": {
+    "home": [
+     {
+      "player": "Солдатенко Алексей (мл)",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Солдатенко Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Александров Руслан",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Гриценко Сергей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Никулин Андрей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Худов Геннадий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Белицкий Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ],
+    "away": [
+     {
+      "player": "Борисов Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Нещерет Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Масалов Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Усов Вадим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Вовк Виталий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Владимиров Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ]
+   },
+   "goals": [
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Масалов Алексей",
+     "assist": null,
+     "minute": 3,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Усов Вадим",
+     "assist": null,
+     "minute": 10,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Нещерет Алексей",
+     "assist": null,
+     "minute": 11,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Усов Вадим",
+     "assist": null,
+     "minute": 19,
+     "kind": "own_goal"
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Масалов Алексей",
+     "assist": null,
+     "minute": 21,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Вовк Виталий",
+     "assist": null,
+     "minute": 25,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Владимиров Александр",
+     "assist": null,
+     "minute": 25,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Нещерет Алексей",
+     "assist": null,
+     "minute": 31,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Александров Руслан",
+     "assist": null,
+     "minute": 35,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Солдатенко Алексей",
+     "assist": null,
+     "minute": 36,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Масалов Алексей",
+     "assist": null,
+     "minute": 40,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Владимиров Александр",
+     "assist": null,
+     "minute": 41,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Масалов Алексей",
+     "assist": null,
+     "minute": 45,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Никулин Андрей",
+     "assist": null,
+     "minute": 48,
+     "kind": null
+    }
+   ],
+   "missed_pens": [],
+   "shootout_kicks": []
+  },
+  {
+   "n": 4,
+   "date": "2010-03-27",
+   "round": 3,
+   "stage": null,
+   "home": "АЖИ",
+   "away": "Наша команда",
+   "score": [
+    5,
+    4
+   ],
+   "shootout": false,
+   "technical": false,
+   "referee": "Сагаян Павел",
+   "attendance": 9,
+   "city": "Харьков",
+   "venue": "СК Фармуниверситета",
+   "stats": {
+    "corners": [
+     6,
+     4
+    ],
+    "fouls": [
+     5,
+     1
+    ],
+    "shots": [
+     38,
+     34
+    ],
+    "on_target": [
+     30,
+     29
+    ],
+    "woodwork": [
+     0,
+     0
+    ]
+   },
+   "lineups": {
+    "home": [
+     {
+      "player": "Логачёв Сергей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Солдатенко Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Александров Руслан",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Солдатенко Алексей (мл)",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Абаджи Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Худов Геннадий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Пройдак Виталий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Белицкий Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ],
+    "away": [
+     {
+      "player": "Степаненко Михаил",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Можейко Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Мартыненко Максим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Зиненко Юрий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Козодой Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Коржун Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Шевченко Дмитрий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ]
+   },
+   "goals": [
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Абаджи Алексей",
+     "assist": null,
+     "minute": 5,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Коржун Алексей",
+     "assist": null,
+     "minute": 13,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Козодой Александр",
+     "assist": null,
+     "minute": 14,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Козодой Александр",
+     "assist": null,
+     "minute": 18,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Солдатенко Алексей",
+     "assist": null,
+     "minute": 19,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Солдатенко Алексей",
+     "assist": null,
+     "minute": 20,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Солдатенко Алексей (мл)",
+     "assist": null,
+     "minute": 23,
+     "kind": null
+    },
+    {
+     "team": "АЖИ",
+     "side": "home",
+     "player": "Худов Геннадий",
+     "assist": null,
+     "minute": 35,
+     "kind": null
+    },
+    {
+     "team": "Наша команда",
+     "side": "away",
+     "player": "Коржун Алексей",
+     "assist": null,
+     "minute": 38,
+     "kind": null
+    }
+   ],
+   "missed_pens": [],
+   "shootout_kicks": []
+  },
+  {
+   "n": 5,
+   "date": "2010-03-27",
+   "round": 3,
+   "stage": null,
+   "home": "ГолStar",
+   "away": "Слобода",
+   "score": [
+    4,
+    6
+   ],
+   "shootout": false,
+   "technical": false,
+   "referee": "Сагаян Павел",
+   "attendance": 21,
+   "city": "Харьков",
+   "venue": "СК Фармуниверситета",
+   "stats": {
+    "corners": [
+     6,
+     4
+    ],
+    "fouls": [
+     2,
+     0
+    ],
+    "shots": [
+     23,
+     21
+    ],
+    "on_target": [
+     15,
+     16
+    ],
+    "woodwork": [
+     1,
+     0
+    ]
+   },
+   "lineups": {
+    "home": [
+     {
+      "player": "Брусенцов Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Проуторов Михаил",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Левонюк Евгений",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Гурджян Баграт",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Яковлев Дмитрий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Яковенко Андрей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Худов Владислав",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Киенко Вячеслав",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ],
+    "away": [
+     {
+      "player": "Борисов Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Нещерет Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Масалов Алексей",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Усов Вадим",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Вовк Виталий",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     },
+     {
+      "player": "Владимиров Александр",
+      "minutes": 50,
+      "yellow": false,
+      "yellow_min": null,
+      "red": false,
+      "replaced_by": null
+     }
+    ]
+   },
+   "goals": [
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Худов Владислав",
+     "assist": null,
+     "minute": 7,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Усов Вадим",
+     "assist": null,
+     "minute": 10,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Нещерет Алексей",
+     "assist": null,
+     "minute": 11,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Худов Владислав",
+     "assist": null,
+     "minute": 21,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Яковенко Андрей",
+     "assist": null,
+     "minute": 30,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Усов Вадим",
+     "assist": null,
+     "minute": 32,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Нещерет Алексей",
+     "assist": null,
+     "minute": 32,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Вовк Виталий",
+     "assist": null,
+     "minute": 41,
+     "kind": null
+    },
+    {
+     "team": "Слобода",
+     "side": "away",
+     "player": "Усов Вадим",
+     "assist": null,
+     "minute": 45,
+     "kind": null
+    },
+    {
+     "team": "ГолStar",
+     "side": "home",
+     "player": "Киенко Вячеслав",
+     "assist": null,
+     "minute": 49,
+     "kind": null
+    }
+   ],
+   "missed_pens": [],
+   "shootout_kicks": []
+  }
+ ],
+ "season": "2009/10",
+ "tournament": "Кубок Надежды"
+}
