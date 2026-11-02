@@ -16,7 +16,7 @@
   const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c); };
   // склад клубу «АЖІ (бренд)» показуємо як «АЖІ» з позначкою ліги
   const SQUAD = /^(.*) \((бренд|медіа)\)$/;
-  const nameHtml = n => { const m = String(n || '').match(SQUAD); if (!m) return esc(n); const md = m[2] === 'медіа'; return `${esc(m[1])}<span class="lgm ${md ? 'm' : 'b'}" title="${md ? 'Медіа-ліга' : 'Бренд-ліга'}">${md ? 'М' : 'Б'}</span>`; };
+  const nameHtml = n => esc(plainName(n));
   const plainName = n => String(n || '').replace(SQUAD, '$1');
   const teamLink = (team, name) => team ? `<a href="#t-${team.id}">${nameHtml(name || team.name)}</a>` : nameHtml(name || '—');
   // умовна емблема клубу: щит у кольорах, сталих для клубу, і його ініціали (справжніх логотипів команд у даних немає)
@@ -677,7 +677,7 @@
     if (!sq.includes(focus)) sq.push(focus);
     const S = new Set(sq);
     const name = clubName(focus);
-    const multi = sq.length > 1;
+    const realSq = sq.filter(t => !t.sub), multi = realSq.length > 1;
     const sorder = (a, b) => Core.seasonOrder(a) - Core.seasonOrder(b);
     const seasons = [...new Set(sq.flatMap(t => t.seasons))].sort(sorder);
     const matches = [...new Set(sq.flatMap(t => t.matches))].sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -687,47 +687,68 @@
     const fin = sq.flatMap(t => t.finishes.map(f => ({ ...f, squad: t }))).sort((a, b) => Core.seasonOrder(b.t.season.label) - Core.seasonOrder(a.t.season.label));
     const tp = (k, extra, label) => () => ({ title: (label || name) + ' · ' + TK[k], items: teamItems(sq, k, null, extra) });
 
-    // сітка «турнір × сезон»: місце в клітинці, медалі кольором
-    const HG_ORDER = ['chemp', 'media', 'brand', 'cup', 'cl', 'hope', 'gold', 'lc'];
-    const honorGrid = c => {
-      const cells = new Map(), rowsSeen = new Map();
-      const put = (t, e) => {
-        const k = t.id + '|' + t.season.label;
-        if (!cells.has(k)) cells.set(k, { t, list: [] });
-        cells.get(k).list.push(e); rowsSeen.set(t.id, t.id === 'chemp' ? 'Чемпіонат АЖІ' : t.name);
-      };
-      for (const x of trophies.filter(x => CAT(x.t) === c)) put(x.t, { place: x.place, medal: true, squad: x.squad });
-      for (const x of fin.filter(x => CAT(x.t) === c)) {
-        const cell = cells.get(x.t.id + '|' + x.t.season.label);
-        if (cell && cell.list.some(e => e.medal && e.squad === x.squad)) continue;
-        put(x.t, { place: x.t.format === 'league' ? x.pos : null, n: x.n, div: x.div, squad: x.squad });
+    // досягнення клубу: полиця трофеїв і графік місць у чемпіонаті
+    const ACH = { league: 'Чемпіонат АЖІ', cup: 'Кубок АЖІ', cl: 'Ліга Чемпіонів', hope: 'Кубок Надії', gold: 'Кубок «Золота середина»', lc: 'Кубок Ліги' };
+    const ACH_SHORT = { cup: 'КА', cl: 'ЛЧ', hope: 'КН', gold: 'ЗС', lc: 'КЛ' };
+    const achKey = t => CAT(t) === 'league' ? 'league' : t.id;
+    const lgTag = t => t.id === 'media' ? '<span class="lgm m" title="Медіа-ліга">М</span>' : t.id === 'brand' ? '<span class="lgm b" title="Бренд-ліга">Б</span>' : '';
+    const achievements = (() => {
+      const lf = fin.filter(x => CAT(x.t) === 'league' && x.pos);
+      if (!trophies.length && !lf.length) return '';
+      // полиця
+      const groups = new Map(Object.keys(ACH).map(k => [k, []]));
+      for (const x of trophies) { const k = achKey(x.t); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
+      const placeWord = (k, pl) => pl === 1 ? (k === 'league' ? 'Чемпіон' : 'Перемога') : pl + ' місце';
+      const cards = [...groups.entries()].filter(([, l]) => l.length).map(([k, l]) => {
+        const title = ACH[k] || l[0].t.name;
+        const counts = [1, 2, 3].map(pl => l.filter(x => x.place === pl).length);
+        const lines = [1, 2, 3].filter(pl => counts[pl - 1]).map(pl => `<div class="ach-line"><span class="ach-w">${placeWord(k, pl)}</span><span>${l.filter(x => x.place === pl).sort((a, b) => Core.seasonOrder(a.t.season.label) - Core.seasonOrder(b.t.season.label)).map(x => `<a href="${tourHref(x.t)}">${esc(x.t.season.label)}</a>${lgTag(x.t)}`).join(', ')}</span></div>`).join('');
+        return `<div class="ach-card"><div class="ach-t">${esc(title)}</div><div class="ach-cnt">${counts.map((n, i) => n ? `<span class="ach-n"><i class="ach-c g${i + 1}">${i + 1}</i><b>${n}</b></span>` : '').join('')}</div>${lines}</div>`;
+      }).join('');
+      const nGold = trophies.filter(x => x.place === 1).length;
+      const shelf = trophies.length ? `<div class="ach-head"><h2 class="sec">Трофеї</h2><span class="muted">${nGold} ${plural(nGold, 'титул', 'титули', 'титулів')} · ${trophies.length} ${plural(trophies.length, 'медаль', 'медалі', 'медалей')}</span></div><div class="ach-cards">${cards}</div>` : '';
+      // графік місць
+      let chart = '';
+      if (new Set(lf.map(x => x.t.season)).size >= 3) {
+        const cupTr = trophies.filter(x => CAT(x.t) !== 'league');
+        const used = new Set([...lf, ...cupTr].map(x => x.t.season.label));
+        const ix = db.seasons.map((s, i) => used.has(s.label) ? i : -1).filter(i => i >= 0);
+        const cols = db.seasons.slice(Math.min(...ix), Math.max(...ix) + 1);
+        const maxP = Math.max(5, ...lf.map(x => x.pos));
+        const CW = 50, L = 30, T = 18, PH = Math.min(240, 24 * (maxP - 1)), XL = T + PH + 42, CUP = XL + 18;
+        const maxCups = Math.max(0, ...cols.map(s => cupTr.filter(x => x.t.season === s).length));
+        const H = CUP + (maxCups ? maxCups * 22 + 6 : 0), W = L + cols.length * CW + 6;
+        const cx = i => L + i * CW + CW / 2, cy = p => T + (p - 1) / (maxP - 1) * PH;
+        const short = l => l.replace(/^20(\d\d)\/(\d\d)$/, '$1/$2').replace(/^20(\d\d)$/, '$1');
+        const won = x => trophies.find(tr => tr.t === x.t && tr.squad === x.squad);
+        const lgName = t => t.id === 'media' ? 'Медіа-ліга' : t.id === 'brand' ? 'Бренд-ліга' : t.name;
+        const sqLab = x => multi && SQUAD.test(x.squad.name) ? ' · ' + plainName(x.squad.name) : '';
+        let svg = `<rect x="${L}" y="${cy(1) - 13}" width="${cols.length * CW}" height="${cy(3) - cy(1) + 26}" rx="8" class="ach-zone"/>`;
+        for (const p of [...new Set([1, 3, 5, maxP])].filter(p => p <= maxP)) svg += `<line x1="${L}" x2="${W - 6}" y1="${cy(p)}" y2="${cy(p)}" class="ach-grid"/><text x="${L - 8}" y="${cy(p) + 4}" class="ach-yl">${p}</text>`;
+        const best = cols.map(s => { const l = lf.filter(x => x.t.season === s); return l.length ? Math.min(...l.map(x => x.pos)) : null; });
+        let path = '';
+        best.forEach((p, i) => { if (p == null) return; path += (i && best[i - 1] != null ? 'L' : 'M') + cx(i) + ' ' + cy(p) + ' '; });
+        svg += `<path d="${path}" class="ach-line-p"/>`;
+        cols.forEach((s, i) => {
+          svg += `<text x="${cx(i)}" y="${XL}" class="ach-xl">${esc(short(s.label))}</text>`;
+          const l = lf.filter(x => x.t.season === s).sort((a, b) => a.pos - b.pos);
+          l.forEach((x, k) => {
+            const dx = l.length > 1 ? (k ? 10 : -10) : 0, dy = l.length > 1 && l[0].pos === l[1].pos ? 0 : 0;
+            const m = won(x), cls = m ? 'g' + m.place : 'g0';
+            svg += `<a href="${tourHref(x.t)}" data-hg="${esc(lgName(x.t) + ' ' + s.label)}" data-hgr="${esc((m ? placeWord('league', m.place) : x.pos + ' місце') + ' з ' + x.n + sqLab(x))}"><g class="ach-pt ${cls}" transform="translate(${cx(i) + dx},${cy(x.pos) + dy})"><circle r="12"/><text y="4">${x.pos}</text>${x.t.id === 'media' || x.t.id === 'brand' ? `<text y="25" class="ach-tag ${x.t.id === 'media' ? 'm' : 'b'}">${x.t.id === 'media' ? 'М' : 'Б'}</text>` : ''}</g></a>`;
+          });
+          cupTr.filter(x => x.t.season === s).sort((a, b) => a.place - b.place).forEach((x, k) => {
+            svg += `<a href="${tourHref(x.t)}" data-hg="${esc(x.t.name + ' ' + s.label)}" data-hgr="${esc(placeWord('cup', x.place) + sqLab(x))}"><g class="ach-cup g${x.place}" transform="translate(${cx(i)},${CUP + k * 22 + 9})"><rect x="-17" y="-9" width="34" height="18" rx="9"/><text y="4">${ACH_SHORT[x.t.id] || esc(x.t.name.slice(0, 2))}</text></g></a>`;
+          });
+        });
+        if (maxCups) svg += `<text x="${L - 8}" y="${CUP + 13}" class="ach-yl">🏆</text>`;
+        const usedCups = [...new Set(cupTr.map(x => x.t.id))];
+        chart = `<div class="ach-head"><h2 class="sec">Місце в чемпіонаті по сезонах</h2></div>
+          <div class="tw ach-scroll"><svg class="ach-chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Місце клубу в чемпіонаті по сезонах">${svg}</svg></div>
+          <p class="note">Кружок — місце в чемпіонаті (вище — краще); золото, срібло, бронза — медалі. У сезонах із двома лігами: <span class="lgm m">М</span> Медіа-ліга, <span class="lgm b">Б</span> Бренд-ліга.${usedCups.length ? ' Нижче — кубкові трофеї: ' + usedCups.map(id => (ACH_SHORT[id] || '') + ' — ' + esc(ACH[id] || id)).join(', ') + '.' : ''} Наведіть, щоб побачити деталі.</p>`;
       }
-      if (!cells.size) return '';
-      const used = new Set([...cells.values()].map(v => v.t.season.label));
-      const idx = db.seasons.map((s, i) => used.has(s.label) ? i : -1).filter(i => i >= 0);
-      const cols = db.seasons.slice(Math.min(...idx), Math.max(...idx) + 1);
-      const rows = [...rowsSeen.keys()].sort((a, b) => (HG_ORDER.indexOf(a) + 99) % 99 - (HG_ORDER.indexOf(b) + 99) % 99);
-      const short = l => l.replace(/^20(\d\d)\/(\d\d)$/, '$1/$2').replace(/^20(\d\d)$/, '$1');
-      const sqName = sq => multi ? ' · ' + plainName(sq.name) + (SQUAD.test(sq.name) ? (/бренд/.test(sq.name) ? ' (Бренд-ліга)' : ' (Медіа-ліга)') : '') : '';
-      const isCup = id => CAT({ id, format: '' }) !== 'league';
-      const what = (e, id) => e.medal ? (isCup(id) ? (e.place === 1 ? 'Переможець' : e.place === 2 ? 'Фіналіст' : '3 місце') : e.place === 1 ? 'Чемпіон' : e.place + ' місце')
-        : e.place != null ? e.place + ' місце з ' + e.n : 'Груповий етап' + (e.div ? ' (' + e.div + ')' : '');
-      const medals = [1, 2, 3].map(pl => trophies.filter(x => CAT(x.t) === c && x.place === pl).length);
-      const mLab = c === 'league' ? [['чемпіонство', 'чемпіонства', 'чемпіонств'], ['друге місце', 'других місця', 'других місць'], ['третє місце', 'треті місця', 'третіх місць']] : [['перемога', 'перемоги', 'перемог'], ['фінал', 'фінали', 'фіналів'], ['третє місце', 'треті місця', 'третіх місць']];
-      const sum = medals.some(Boolean) ? `<div class="hg-sum">${medals.map((n, i) => n ? `<span class="hg-m"><i class="hg-c g${i + 1}">${i + 1}</i><b>${n}</b> ${plural(n, ...mLab[i])}</span>` : '').join('')}</div>` : '';
-      const head = `<div class="hg-h"></div>${cols.map(s => `<div class="hg-h" title="${esc(s.label)}">${esc(short(s.label))}</div>`).join('')}`;
-      const body = rows.map(id => `<div class="hg-r">${esc(rowsSeen.get(id))}</div>${cols.map(s => {
-        const cell = cells.get(id + '|' + s.label);
-        if (!cell) return '<div class="hg-x"></div>';
-        const list = cell.list.slice().sort((a, b) => (a.place || 99) - (b.place || 99));
-        const best = list[0];
-        const tipRows = list.map(e => what(e, id) + sqName(e.squad));
-        const mark = best.medal ? `<i class="hg-c g${best.place}">${best.place}</i>` : best.place != null ? `<i class="hg-c">${best.place}</i>` : '<i class="hg-c hg-dot"></i>';
-        return `<a class="hg-x" href="${tourHref(cell.t)}" data-hg="${esc(cell.t.name + ' ' + s.label)}" data-hgr="${esc(tipRows.join('\n'))}" aria-label="${esc(cell.t.name + ' ' + s.label + ': ' + tipRows.join('; '))}">${mark}${list.length > 1 ? '<sup>' + list.length + '</sup>' : ''}</a>`;
-      }).join('')}`).join('');
-      return `${sum}<div class="tw hg-wrap"><div class="hg" style="grid-template-columns:max-content repeat(${cols.length},34px)">${head}${body}</div></div>
-        <p class="note">Клітинка — місце команди в сезоні${c === 'league' ? '' : ' (крапка — груповий етап)'}. Наведіть, щоб побачити деталі; натисніть, щоб відкрити турнір.</p>`;
-    };
+      return `<section class="block ach">${shelf}${chart}</section>`;
+    })();
     const catPanel = c => {
       const f = fin.filter(x => CAT(x.t) === c);
       const tr = trophies.filter(x => CAT(x.t) === c);
@@ -736,8 +757,7 @@
       const bySeason = new Map();
       for (const m of ms) { if (!bySeason.has(m.season.label)) bySeason.set(m.season.label, []); bySeason.get(m.season.label).push(m); }
       const rowPop = (x, k) => (x.t.final ? null : () => ({ title: name + ' · ' + x.t.name + ' ' + x.t.season.label + ' · ' + TK[k], items: teamItems(x.squad, k, null, m => m.tour === x.t) }));
-      return `${honorGrid(c)}
-        ${f.length ? `<div class="tw"><table><thead><tr><th>Сезон</th><th>Турнір</th><th class="n">Місце</th><th class="n">І</th><th class="n hide-s">В–Н–П</th><th class="n">М’ячі</th><th class="n">О</th></tr></thead><tbody>${f.map(x => `<tr><td>${seasonLink(x.t.season)}</td><td><a href="${tourHref(x.t)}">${c === 'league' ? lgChip(x.t) : esc(x.t.name)}</a>${x.div ? ` <span class="muted">· ${esc(x.div)}</span>` : ''}${SQUAD.test(x.row.name) || plainName(x.row.name) !== name ? ` <span class="muted">${nameHtml(x.row.name)}</span>` : ''}</td><td class="n"><span class="pos${x.complete && x.t.format === 'league' ? medalCls(x.pos) : ''}">${x.pos}</span><span class="muted"> з ${x.n}</span></td><td class="n">${popv(x.row.p, rowPop(x, 'p'))}</td><td class="n hide-s">${popv(x.row.w, x.row.w ? rowPop(x, 'w') : null)}–${popv(x.row.d, x.row.d ? rowPop(x, 'd') : null)}–${popv(x.row.l, x.row.l ? rowPop(x, 'l') : null)}</td><td class="n">${x.row.gf}–${x.row.ga}</td><td class="n pts">${x.row.pts}</td></tr>`).join('')}</tbody></table></div>
+      return `${f.length ? `<div class="tw"><table><thead><tr><th>Сезон</th><th>Турнір</th><th class="n">Місце</th><th class="n">І</th><th class="n hide-s">В–Н–П</th><th class="n">М’ячі</th><th class="n">О</th></tr></thead><tbody>${f.map(x => `<tr><td>${seasonLink(x.t.season)}</td><td><a href="${tourHref(x.t)}">${c === 'league' ? lgChip(x.t) : esc(x.t.name)}</a>${x.div ? ` <span class="muted">· ${esc(x.div)}</span>` : ''}${SQUAD.test(x.row.name) || plainName(x.row.name) !== name ? ` <span class="muted">${nameHtml(x.row.name)}</span>` : ''}</td><td class="n"><span class="pos${x.complete && x.t.format === 'league' ? medalCls(x.pos) : ''}">${x.pos}</span><span class="muted"> з ${x.n}</span></td><td class="n">${popv(x.row.p, rowPop(x, 'p'))}</td><td class="n hide-s">${popv(x.row.w, x.row.w ? rowPop(x, 'w') : null)}–${popv(x.row.d, x.row.d ? rowPop(x, 'd') : null)}–${popv(x.row.l, x.row.l ? rowPop(x, 'l') : null)}</td><td class="n">${x.row.gf}–${x.row.ga}</td><td class="n pts">${x.row.pts}</td></tr>`).join('')}</tbody></table></div>
         ${c !== 'league' ? '<p class="note">Місця в групових етапах кубків показано без медалей.</p>' : ''}` : ''}
         ${bySeason.size ? `<div class="mlist">${[...bySeason.entries()].reverse().map(([lbl, list]) => `<details class="round"><summary>Матчі ${esc(lbl)} <span>${list.length} ${plural(list.length, 'матч', 'матчі', 'матчів')}</span></summary>${list.map(m => matchRow(m, { ctx: stageCtx(m) })).join('')}</details>`).join('')}</div>` : ''}`;
     };
@@ -766,7 +786,7 @@
     const opps = [...opp.values()].sort((a, b) => b.p - a.p).slice(0, 20);
     const vsPop = (r, k) => () => ({ title: name + ' — ' + clubName(r.team) + ' · ' + TK[k], items: teamItems(sq, k, null, m => r.set.has(m.home) || r.set.has(m.away)) });
     const stats = `${opps.length ? `<section class="block"><h2 class="sec">Найчастіші суперники</h2><div class="tw"><table><thead><tr><th>Суперник</th><th class="n">І</th><th class="n">В</th><th class="n">Н</th><th class="n">П</th><th class="n">М’ячі</th></tr></thead><tbody>${opps.map(r => `<tr><td>${teamLink(r.team, clubName(r.team))}</td>${['p', 'w', 'd', 'l'].map(k => `<td class="n">${popv(r[k], r[k] ? vsPop(r, k) : null)}</td>`).join('')}<td class="n">${r.gf}–${r.ga}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
-      ${sq.filter(t => t.matches.length).map(t => (multi ? `<h2 class="sec">Склад ${nameHtml(t.name)}</h2>` : '') + teamStatsSection(t)).join('')}`;
+      ${realSq.filter(t => t.matches.length).map(t => (multi ? `<h2 class="sec">Склад ${nameHtml(t.name)}</h2>` : '') + teamStatsSection(t)).join('')}`;
     const tabs = [['league', 'Чемпіонат', catPanel('league')], ['cup', 'Кубок АЖІ', catPanel('cup')], ['other', 'Інші кубки', catPanel('other')], ['players', 'Гравці', players], ['stats', 'Статистика', matches.length ? stats : null]].filter(x => x[2]);
     const key = sq[0].id;
     const cur = tabs.some(x => x[0] === clubTabs.get(key)) ? clubTabs.get(key) : (tabs[0] || [])[0];
@@ -778,7 +798,7 @@
       if (l && l.names === names) l.to = lbl; else nameRuns.push({ names, from: lbl, to: lbl });
     }
     const squadsHtml = multi
-      ? `<div class="squads">${sq.map(t => `<a class="squad${t === focus ? ' on' : ''}" href="#t-${t.id}">${nameHtml(t.name)} · ${range(t.seasons)}${t.names.length > 1 ? ' · ' + esc(t.names.filter(n => n !== t.name).map(plainName).join(', ')) : ''}</a>`).join('')}</div><p class="note">Клуб виступав кількома складами: М — у Медіа-лізі, Б — у Бренд-лізі. Нижче — усі склади разом, у таблицях видно, де грав кожен.</p>`
+      ? `<div class="squads">${realSq.map(t => `<a class="squad${t === focus ? ' on' : ''}" href="#t-${t.id}">${nameHtml(t.name)} · ${range(t.seasons)}${t.names.length > 1 ? ' · ' + esc(t.names.filter(n => n !== t.name).map(plainName).join(', ')) : ''}</a>`).join('')}</div><p class="note">Клуб виступав кількома складами: М — у Медіа-лізі, Б — у Бренд-лізі. Нижче — усі склади разом, у таблицях видно, де грав кожен.</p>`
       : (nameRuns.length > 1 ? `<div class="chips">${nameRuns.map(r => `<span class="chip">${esc(r.names)} · ${esc(r.from)}${r.to !== r.from ? '–' + esc(r.to) : ''}</span>`).join('')}</div>` : '');
     return `<div class="page">
       <div class="block">
@@ -795,6 +815,7 @@
         </div>
         ${squadsHtml}
       </div>
+      ${achievements}
       ${tabs.length ? `<div class="ptabs" role="tablist" data-club="${key}">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === cur}">${l}</button>`).join('')}</div>
       ${tabs.map(([k, , html]) => `<div class="tabpanel" data-panel="${k}"${k === cur ? '' : ' hidden'}>${html}</div>`).join('')}` : '<div class="callout">Протоколів матчів цього клубу в архіві немає.</div>'}
       ${reportBtn()}
@@ -802,7 +823,7 @@
   }
   function bindTabs() {
     const bar = app.querySelector('.ptabs'); if (!bar) return;
-    app.querySelectorAll('.hg').forEach(g => {
+    app.querySelectorAll('.ach-chart').forEach(g => {
       g.addEventListener('pointermove', e => { const a = e.target.closest('[data-hg]'); if (!a) return Charts.hideTip(); Charts.showTip(e, a.dataset.hg, a.dataset.hgr.split('\n').map(v => ({ value: v }))); });
       g.addEventListener('pointerleave', () => Charts.hideTip());
     });
@@ -885,7 +906,7 @@
   }
   function playoffHtml(list) {
     const by = st => list.filter(m => m.stage === st);
-    const main = [['1/4 фіналу', by('1/4 фіналу')], ['1/2 фіналу', by('1/2 фіналу')], ['Фінал', by('Фінал')]].filter(x => x[1].length);
+    const main = [['1/8 фіналу', by('1/8 фіналу')], ['1/4 фіналу', by('1/4 фіналу')], ['1/2 фіналу', by('1/2 фіналу')], ['Фінал', by('Фінал')]].filter(x => x[1].length);
     const third = list.filter(m => /^За 3/.test(m.stage || ''));
     const used = new Set([...main.flatMap(x => x[1]), ...third]);
     let html = '';
@@ -903,8 +924,8 @@
   const STAGE_ORDER = s => {
     if (!s) return 99;
     if (/^\d+ тур$/.test(s)) return parseInt(s, 10);
-    if (s === '1/4 фіналу') return 101; if (s === '1/2 фіналу') return 102;
-    if (/^За [5-9]/.test(s)) return 103; if (/^За 3/.test(s)) return 104; if (s === 'Фінал') return 105;
+    if (s === '1/8 фіналу') return 100.5; if (s === '1/4 фіналу') return 101; if (s === '1/2 фіналу') return 102;
+    if (/^За [5-9]–/.test(s)) return 103; if (/^За 1\d/.test(s)) return 103.5; if (/^За 3/.test(s)) return 104; if (s === 'Фінал') return 105;
     return 100;
   };
   function tournamentBody(t) {
@@ -1133,7 +1154,7 @@
   /* ---------- клубы ---------- */
   function clubLine(t) {
     if (!t.club) return '';
-    const mates = [...db.teams.values()].filter(x => x.club === t.club && x !== t);
+    const mates = [...db.teams.values()].filter(x => x.club === t.club && x !== t && !x.sub && x !== t.parent);
     if (!mates.length) return '';
     return `<p class="muted">Клуб «${esc(t.club)}». Інші склади клубу: ${mates.map(x => teamLink(x)).join(', ')}.</p>`;
   }

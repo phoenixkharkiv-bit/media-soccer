@@ -15,6 +15,8 @@
     return String(s).toLowerCase().split('').map(c => (c in TR ? TR[c] : c)).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x';
   }
 
+  // состав клуба в лиге: «АЖИ (бренд)», «АЖІ (медіа)»; на сайте показываем просто название клуба
+  const SQUAD_RE = /^(.*) \((бренд|медиа|медіа)\)$/;
   /* ---------- сборка базы ---------- */
   function build(raw) {
     // raw: {seasons:[seasonObj...], teams:{teams:[...]}, players:{merge:[], split:[]}}
@@ -91,11 +93,32 @@
           }
         }
       }
+      // склади одного клубу в одному турнірі (зустрічались між собою) — окремі команди лише в цьому турнірі
+      const subOf = new Map(), byTour = new Map();
+      for (const m of s.matches) for (const n of [m.home, m.away]) {
+        if (!byTour.has(m.t)) byTour.set(m.t, new Map());
+        const mm = byTour.get(m.t), base = teamOf(n);
+        if (!mm.has(base)) mm.set(base, new Map());
+        const r = mm.get(base).get(n) || [m.date, m.date];
+        if (m.date < r[0]) r[0] = m.date; if (m.date > r[1]) r[1] = m.date;
+        mm.get(base).set(n, r);
+      }
+      // перейменування посеред сезону — не склади: назви не грали одночасно
+      const together = rs => rs.some((a, i) => rs.some((b, j) => i !== j && a[0] <= b[1] && b[0] <= a[1]));
+      for (const [tk, mm] of byTour) for (const [base, set] of mm) if (set.size > 1 && together([...set.values()])) for (const n of set.keys()) {
+        const sq = n.match(SQUAD_RE), id = base.id + '--' + slug(n);
+        base.club = base.club || base.name;
+        let t = db.teams.get(id);
+        if (!t) { t = { id, name: sq ? sq[1] + (sq[2] === 'бренд' ? ' (Бренд-ліга)' : ' (Медіа-ліга)') : n, names: [n], club: base.club, parent: base, sub: true, matches: [], namesBySeason: new Map(), note: null }; db.teams.set(id, t); }
+        subOf.set(tk + '|' + n, t);
+      }
+      const teamIn = (n, tk) => subOf.get(tk + '|' + n) || teamOf(n);
+      const nameIn = (n, tk) => (subOf.has(tk + '|' + n) ? subOf.get(tk + '|' + n).name : n);
       for (const m of s.matches) {
         const tour = tmap.get(m.t);
         const mt = {
           id: m.id, season, tour, div: m.div, stage: m.stage, date: m.date,
-          homeName: m.home, awayName: m.away, home: teamOf(m.home), away: teamOf(m.away),
+          homeName: nameIn(m.home, m.t), awayName: nameIn(m.away, m.t), home: teamIn(m.home, m.t), away: teamIn(m.away, m.t),
           score: m.score, tech: m.tech || null, pens: m.pens || null, ref: m.ref || null, venue: m.venue || null, att: m.att || null,
           goals: [], lineups: { h: [], a: [] }, yc: [], rc: [], shootout: m.shootout || null, mp: [], stats: m.stats || null,
         };
@@ -161,7 +184,7 @@
 
     function noteName(team, season, name) {
       if (!team.namesBySeason.has(season.label)) team.namesBySeason.set(season.label, new Set());
-      team.namesBySeason.get(season.label).add(name);
+      team.namesBySeason.get(season.label).add(String(name).replace(SQUAD_RE, '$1'));
     }
   }
 
