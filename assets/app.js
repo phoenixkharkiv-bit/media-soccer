@@ -839,8 +839,10 @@
   // два головні клуби гравця (склади одного клубу не повторюємо)
   function clubsOf(teams) {
     const seen = new Map();
-    for (const t of [...teams.values()].sort((a, b) => b.apps - a.apps)) { const h = clubHome(t.team); if (!seen.has(h.id)) seen.set(h.id, { team: h, name: t.team.club ? clubName(t.team) : plainName([...t.names][0]) }); }
-    return [...seen.values()].slice(0, 2);
+    for (const t of [...teams.values()].sort((a, b) => b.apps - a.apps)) { const h = clubHome(t.team); if (!seen.has(h.id)) seen.set(h.id, { team: h, name: t.team.club ? clubName(t.team) : plainName([...t.names][0]), apps: 0 }); seen.get(h.id).apps += t.apps || 0; }
+    // другий клуб — лише якщо гравець провів за нього хоча б 3 матчі (разові виступи не показуємо)
+    const list = [...seen.values()].sort((a, b) => b.apps - a.apps);
+    return list.slice(0, 2).filter((c, i) => !i || c.apps >= 3 || !list[0].apps);
   }
   function mainTeams(p) { return clubsOf(p.teams).map(c => teamLink(c.team, c.name)).join(', '); }
   function playerTable(list, val, label, k) {
