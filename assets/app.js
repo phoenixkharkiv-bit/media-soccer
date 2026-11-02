@@ -343,7 +343,7 @@
         </div>
         <aside class="col side">
           ${table}
-          <section class="pnl"><div class="pnl-h"><h2>Бомбардири за всю історію</h2><a href="#records">Рекорди</a></div>${ldList(top, p => p.goals.length, 'goals')}<p class="note pad" style="padding-top:8px">За протоколами з 2010/11. Натисніть на число, щоб побачити матчі.</p></section>
+          <section class="pnl"><div class="pnl-h"><h2>Бомбардири за всю історію</h2><a href="#records">Рекорди</a></div>${ldList(top, p => p.goals.length, 'goals')}<p class="note pad" style="padding-top:8px">За протоколами ${protoRange()}. Натисніть на число, щоб побачити матчі.</p></section>
           <section class="pnl"><div class="pnl-h"><h2>Найбільше матчів</h2><a href="#players">Усі гравці</a></div>${ldList(apps, p => p.apps.length, 'apps')}</section>
           <section class="pnl"><div class="pnl-h"><h2>Знайшли неточність?</h2></div><div class="pad"><p class="note" style="margin-bottom:10px">Неправильне ім’я, рахунок чи склад — напишіть нам.</p><button type="button" class="btn pri" data-report="1">Повідомити про неточність</button></div></section>
         </aside>
@@ -659,6 +659,8 @@
   const reportBtn = () => '<p><button type="button" class="report-btn" data-report="1">Повідомити про неточність</button></p>';
 
   /* ---------- клуб: усі склади на одній сторінці ---------- */
+  // роки, за які є протоколи матчів: «2003–2022»
+  const protoRange = () => { const ss = db.seasons.filter(s => !s.archive); if (!ss.length) return ''; const y = l => (l.length > 4 ? 2000 + parseInt(l.slice(-2), 10) : parseInt(l, 10)); return parseInt(ss[0].label, 10) + '–' + y(ss[ss.length - 1].label); };
   const clubName = t => (t.club ? t.club : plainName(t.name));
   function squadsOf(t) {
     if (!t.club) return [t];
@@ -770,7 +772,7 @@
     const clubGoals = p => () => ({ title: p.name + ' · голи за ' + name, items: groupByMatch(p.goals.filter(g => S.has(g.e.side === 'h' ? g.m.home : g.m.away)), xs => goalsNote(xs.length)) });
     const clubApps = p => () => ({ title: p.name + ' · матчі за ' + name, items: p.apps.filter(a => S.has(a.side === 'h' ? a.m.home : a.m.away)).map(a => ({ m: a.m })) });
     const players = (sc.length || apps.length) ? `<div class="grid2"><div class="block"><h2 class="sec">Бомбардири клубу</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Голи</th></tr></thead><tbody>${sc.map((r, i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(r.p)}</td><td class="n pts">${popv(r.goals, clubGoals(r.p))}</td></tr>`).join('')}</tbody></table></div></div>
-      <div class="block"><h2 class="sec">Найбільше матчів</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Матчі</th></tr></thead><tbody>${apps.map(([p, n], i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(p)}</td><td class="n pts">${popv(n, clubApps(p))}</td></tr>`).join('')}</tbody></table></div></div></div><p class="note">За протоколами з 2010/11. Натисніть на число, щоб побачити матчі.</p>` : null;
+      <div class="block"><h2 class="sec">Найбільше матчів</h2><div class="tw"><table><thead><tr><th class="n">#</th><th>Гравець</th><th class="n">Матчі</th></tr></thead><tbody>${apps.map(([p, n], i) => `<tr><td class="n muted">${i + 1}</td><td>${playerLink(p)}</td><td class="n pts">${popv(n, clubApps(p))}</td></tr>`).join('')}</tbody></table></div></div></div><p class="note">За протоколами ${protoRange()}. Натисніть на число, щоб побачити матчі.</p>` : null;
     // суперники
     const opp = new Map();
     for (const m of matches) {
@@ -1099,7 +1101,7 @@
   let playersState = { q: '', sort: 'goals', shown: 100 };
   function pagePlayers() {
     return `<div class="page">
-      <div class="block"><div class="eyebrow">Усі учасники</div><h1 class="title">Гравці</h1><p class="lead">Усі, хто потрапив до протоколів матчів з 2010/11, і бомбардири ранніх сезонів.</p></div>
+      <div class="block"><div class="eyebrow">Усі учасники</div><h1 class="title">Гравці</h1><p class="lead">Усі, хто потрапив до протоколів матчів (${protoRange()})${db.seasons.some(s => s.archive) ? ', і бомбардири ранніх сезонів' : ''}.</p></div>
       <div class="toolbar"><input id="pf" type="search" placeholder="Прізвище або ім’я" aria-label="Знайти гравця" value="${esc(playersState.q)}">
         <label class="muted" for="ps">Сортувати</label>
         <select id="ps"><option value="goals">за голами</option><option value="apps">за матчами</option><option value="seasons">за сезонами</option><option value="name">за абеткою</option></select></div>
@@ -1132,7 +1134,7 @@
     const r = recs;
     const mtable = (list, title, note) => `<div class="block"><h2 class="sec">${title}</h2><div class="mlist">${list.map(m => matchRow(m, { ctx: stageCtx(m) })).join('')}</div>${note ? `<p class="note">${note}</p>` : ''}</div>`;
     return `<div class="page">
-      <div class="block"><div class="eyebrow">За протоколами 2010–2022</div><h1 class="title">Рекорди</h1><p class="lead">Усе пораховано за опублікованими протоколами. Технічні результати до рекордів матчів не входять.</p></div>
+      <div class="block"><div class="eyebrow">За протоколами ${protoRange()}</div><h1 class="title">Рекорди</h1><p class="lead">Усе пораховано за опублікованими протоколами. Технічні результати до рекордів матчів не входять.</p></div>
       <section class="grid2">
         <div class="block"><h2 class="sec">Бомбардири за всю історію</h2>${playerTable(r.topScorers.slice(0, 20), p => p.goals.length, 'Голи', 'goals')}</div>
         <div class="block"><h2 class="sec">Найбільше матчів</h2>${playerTable(r.mostApps.slice(0, 20), p => p.apps.length, 'Матчі', 'apps')}</div>
@@ -1146,7 +1148,7 @@
         <div class="block"><h2 class="sec">Хет-трики</h2>${playerTable(r.hatTricks.slice(0, 15), p => p.hatTricks, 'Хет-трики', 'hat')}</div>
       </section>
       <section class="grid2">
-        <div class="block"><h2 class="sec">Найбільше сезонів</h2>${playerTable(r.mostSeasons.slice(0, 15), p => p.seasonsPlayed.size, 'Сезони', 'apps')}<p class="note">З урахуванням ранніх сезонів, де гравець потрапив до списку бомбардирів.</p></div>
+        <div class="block"><h2 class="sec">Найбільше сезонів</h2>${playerTable(r.mostSeasons.slice(0, 15), p => p.seasonsPlayed.size, 'Сезони', 'apps')}${db.seasons.some(s => s.archive) ? '<p class="note">З урахуванням ранніх сезонів, де гравець потрапив до списку бомбардирів.</p>' : ''}</div>
         ${mtable(r.attendance, 'Найбільше глядачів', 'За даними протоколів, де вказано кількість глядачів.')}
       </section>
     </div>`;
@@ -1303,7 +1305,7 @@
   }
   function pageStats(tab) {
     return `<div class="page">
-      <div class="block"><div class="eyebrow">За протоколами 2010–2022</div><h1 class="title">Статистика</h1>
+      <div class="block"><div class="eyebrow">За протоколами ${protoRange()}</div><h1 class="title">Статистика</h1>
       <div class="tabs" role="tablist">${TABS.map(([k, l]) => `<button role="tab" aria-selected="${k === tab}" data-href="#stats${k ? '-' + k : ''}">${l}</button>`).join('')}</div></div>
       ${tab === 'compare' ? '' : statsFilterBar()}
       <div id="stats-body"></div>
